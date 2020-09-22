@@ -19,11 +19,32 @@ k = 3 # The number of modes to calculate
 
 ### Function Definitions
 
+# Constructs the lowest-order accurate computational molecule for an nth order central-difference derivative
+def cd_1d_molecule(n):
+    n_even = n-n%2
+    mol = np.array([1])
+    for o in range(n_even):
+        mol_R = np.append(np.array([0]), mol)
+        mol_L = np.append(mol, np.array([0]))
+        mol = mol_R - mol_L
+
+    if (n%2):
+        mol_R = np.append(np.array([0,0]), mol)
+        mol_L = np.append(mol, np.array([0,0]))
+        mol = (mol_R - mol_L)/2
+
+    return mol
+
+# Constructs a finite-difference nth order derivative operator matrix with size NxN
+def cd_1d_matrix(n, N):
+    mol = cd_1d_molecule(n)
+    idx = np.arange(len(mol)) - math.floor(len(mol)/2)
+    return sparse.diags(mol, idx, shape=(N, N), format="csr")
+
 # Builds the matrix based on the problem definition for 1.b
 def build_A(dx, N):
     # Construct fourth-order derivative matrix
-    A = sparse.diags([1, -4, 6, -4, 1], [-2, -1, 0, 1, 2], shape=(N, N))
-    A = sparse.csr_matrix(A)
+    A = cd_1d_matrix(4, N)
 
     # Fill in x=0 bdry conditions
     A[0, 0] = A[0, 0] + 1
