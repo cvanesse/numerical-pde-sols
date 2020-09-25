@@ -66,7 +66,7 @@ def apply_1d_homogenous_bcs(A, orders, side):
 
         A[-dA.shape[0]:, -dA.shape[1]:] = A[-dA.shape[0]:, -dA.shape[1]:] + dA
     else:
-        # Right
+        # Left
         A_f = A[num_fictitious:2*num_fictitious, :num_fictitious]
         A = A[num_fictitious:, num_fictitious:]
         F = cd_1d_homogenous_bc_matrix(orders, side)
