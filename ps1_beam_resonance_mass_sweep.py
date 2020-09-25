@@ -13,7 +13,9 @@ from matplotlib import pyplot as plt
 L = 5e-6 # Length of the beam [m]
 w = t = 200e-9 # Width & Thickness for the rectangular beam [m]
 rho = 2300 # Mass density for silicon [kg/m^3]
-E = 1.85e11 # Young's modulus for silicon [kPa]
+E = 1.85e11 # Young's modulus for silicon [Pa]
+
+m = 1e-18
 
 dx = 0.1e-6 # The size of the 1D mesh
 k = 3 # The number of modes to calculate
@@ -40,7 +42,7 @@ def cd_1d_molecule(n):
 def cd_1d_matrix(n, N, h):
     mol = cd_1d_molecule(n)
     idx = np.arange(len(mol)) - math.floor(len(mol)/2)
-    return sparse.diags(mol, idx, shape=(N, N), format="csr") / math.pow(h, n)
+    return sparse.diags(mol, idx, shape=(N, N), format="csr", dtype=np.double) / math.pow(h, n)
 
 # Generates the homogenous BC perturbation matrix from a list of derivative orders
 def cd_1d_homogenous_bc_matrix(orders, side):
@@ -93,41 +95,63 @@ def apply_1d_homogenous_bcs(A, orders, side):
 
     return A
 
-# Builds the matrix based on the problem definition for 1.b
-def build_A(dx, N):
-    # Construct a 4-th derivative operator with 2 fictitious nodes on each side
-    A = cd_1d_matrix(4, N+4, dx)
-
-    # Apply 0th & 1st order homogenous BCs on the left boundary
-    A = apply_1d_homogenous_bcs(A, [0, 1], 0)
-
-    # Apply 2nd & 3rd order homogenous BCs on the right boundary
-    A = apply_1d_homogenous_bcs(A, [2, 3], 1)
-
-    return A
-
 ### Script
 
 N = math.floor(L / dx)
 A = w*t
 D = E*(w*(math.pow(t, 3)))/12
 
-# Build the matrix and solve the eigenvalue problem
-M = build_A(dx, N)
-[w2d_rhoA, y] = linalg.eigs(M, k=k, which="SR") # which="SR" ensures that the low-frequency modes are selected.
-w2d_rhoA = np.real(w2d_rhoA)
-y = np.real(y)
+x = np.linspace(0, L, num=N)
+
+# Construct a 4-th derivative operator with 2 fictitious nodes on each side
+Dx4 = cd_1d_matrix(4, N + 4, dx)
+
+x_m_vals = np.arange(1, 50)
+x_m_vals = x_m_vals*0.1e-6
+
+eigs = np.zeros_like(x_m_vals)
+for xid in range(len(x_m_vals)):
+    x_m = x_m_vals[xid]
+
+    # Build mass perturbation
+    p = np.ones(N+4, dtype=np.double)
+    p = p/rho
+    i_m = int(math.floor(x_m / dx)) + 2 # 2 Fictitious nodes at left boundary
+    p[i_m] = p[i_m+1] = 1/(rho + m/(2*dx*A))
+    p = sparse.diags(p, format="csr", dtype=np.double)
+
+    B = p.dot(Dx4)
+
+    # Apply 0th & 1st order homogenous BCs on the left boundary
+    B = apply_1d_homogenous_bcs(B, [0, 1], 0)
+    # Apply 2nd & 3rd order homogenous BCs on the right boundary
+    B = apply_1d_homogenous_bcs(B, [2, 3], 1)
+
+    # Calculate eigenvalues
+    [e, v] = linalg.eigs(B, k=k, which="SM")  # which="SM" ensures that the low-frequency modes are selected.
+
+    e = np.sort(e)
+
+    eigs[xid] = e[0] * D / A
 
 # Turn eigenvalues into frequencies
-f = (0.5/math.pi) * np.sqrt(w2d_rhoA / rho / A * D )
+f = (0.5/math.pi) * np.sqrt(np.real(eigs))
+
+print(f/1e6)
 
 # Plot the results
-x = np.linspace(0, L, num=N)
-for mid in range(k):
-    plt.plot(x, np.real(y[:, mid]), label=("%f MHz" % (f[mid]/1e6)))
+plt.plot(x_m_vals, f/1e6)
 
+plt.title("Lowest resonant frequency vs. mass position")
+plt.xlabel("x_m [m]")
+plt.ylabel("f [MHz]")
+plt.ylim()
+plt.show()
+
+for mid in range(k):
+    plt.plot(x, np.real(v[:, mid]))
 plt.title("First three eigenmodes of cantilever beam")
 plt.xlabel("x [m]")
 plt.ylabel("Y(x) [m]")
-plt.legend()
 plt.show()
+
