@@ -132,12 +132,10 @@ for xid in range(len(x_m_vals)):
 
     e = np.sort(e)
 
-    eigs[xid] = e[0] * D / A
+    eigs[xid] = np.real(e[0]) * D / A
 
 # Turn eigenvalues into frequencies
 f = (0.5/math.pi) * np.sqrt(np.real(eigs))
-
-print(f/1e6)
 
 # Plot the results
 plt.plot(x_m_vals, f/1e6)
@@ -148,10 +146,10 @@ plt.ylabel("f [MHz]")
 plt.ylim()
 plt.show()
 
-for mid in range(k):
-    plt.plot(x, np.real(v[:, mid]))
-plt.title("First three eigenmodes of cantilever beam")
-plt.xlabel("x [m]")
-plt.ylabel("Y(x) [m]")
-plt.show()
+#for mid in range(k):
+#    plt.plot(x, np.real(v[:, mid]))
+#plt.title("First three eigenmodes of cantilever beam")
+#plt.xlabel("x [m]")
+#plt.ylabel("Y(x) [m]")
+#plt.show()
 
