@@ -15,7 +15,7 @@ q = 1.60218e-19 # Electron charge in C
 a = 1e-9 # 0.5*Well size [m]
 d = 5e-9 # 0.5*Simulation size [m]
 V0 = 1 # Boundary height [eV]
-Vb = 0 # Bias voltage [V]
+Vb = 0.5 # Bias voltage [V]
 
 # Simulation config
 dx = 1e-11 # Grid size [m]
