@@ -54,7 +54,7 @@ for xid in range(len(x_m_vals)):
 
     e = np.sort(e)
 
-    eigs[xid] = e[0] * D / A
+    eigs[xid] = np.real(e[0]) * D / A
 
 # Turn eigenvalues into frequencies
 f_m = (0.5/math.pi) * np.sqrt(np.real(eigs))
