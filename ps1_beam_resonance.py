@@ -26,7 +26,6 @@ M = cd_1d_matrix(4, N + 4, dx)
 
 # Apply 0th & 1st order derivative homogenous BCs on the left boundary
 M = apply_1d_homogenous_bcs(M, [1, 0], 0)
-
 # Apply 2nd & 3rd order derivative homogenous BCs on the right boundary
 M = apply_1d_homogenous_bcs(M, [2, 3], 1)
 

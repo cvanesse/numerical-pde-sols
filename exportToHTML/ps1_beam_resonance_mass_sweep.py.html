@@ -1,0 +1,110 @@
+<html>
+<head>
+<title>ps1_beam_resonance_mass_sweep.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #808080;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #cc7832;}
+.s3 { color: #6897bb;}
+.s4 { color: #6a8759;}
+.ln { color: #606366; font-weight: normal; font-style: normal; }
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ps1_beam_resonance_mass_sweep.py</font>
+</center></td></tr></table>
+<pre><a name="l1"><span class="ln">1    </span></a><span class="s0"># Calculates the resonant frequencies of a beam (ps#1, p1.b)</span>
+<a name="l2"><span class="ln">2    </span></a><span class="s0"># Collin VanEssen, Sept 22nd, 2020</span>
+<a name="l3"><span class="ln">3    </span></a>
+<a name="l4"><span class="ln">4    </span></a><span class="s0">### Import packages</span>
+<a name="l5"><span class="ln">5    </span></a><span class="s2">from </span><span class="s1">finite_difference_methods </span><span class="s2">import </span><span class="s1">*</span>
+<a name="l6"><span class="ln">6    </span></a><span class="s2">from </span><span class="s1">matplotlib </span><span class="s2">import </span><span class="s1">pyplot </span><span class="s2">as </span><span class="s1">plt</span>
+<a name="l7"><span class="ln">7    </span></a>
+<a name="l8"><span class="ln">8    </span></a><span class="s0">### Config</span>
+<a name="l9"><span class="ln">9    </span></a>
+<a name="l10"><span class="ln">10   </span></a><span class="s1">L = </span><span class="s3">5e-6 </span><span class="s0"># Length of the beam [m]</span>
+<a name="l11"><span class="ln">11   </span></a><span class="s1">w = t = </span><span class="s3">200e-9 </span><span class="s0"># Width &amp; Thickness for the rectangular beam [m]</span>
+<a name="l12"><span class="ln">12   </span></a><span class="s1">rho = </span><span class="s3">2300 </span><span class="s0"># Mass density for silicon [kg/m^3]</span>
+<a name="l13"><span class="ln">13   </span></a><span class="s1">E = </span><span class="s3">1.85e11 </span><span class="s0"># Young's modulus for silicon [Pa]</span>
+<a name="l14"><span class="ln">14   </span></a>
+<a name="l15"><span class="ln">15   </span></a><span class="s1">m = </span><span class="s3">1e-18</span>
+<a name="l16"><span class="ln">16   </span></a>
+<a name="l17"><span class="ln">17   </span></a><span class="s1">dx = </span><span class="s3">0.1e-6 </span><span class="s0"># The size of the 1D mesh</span>
+<a name="l18"><span class="ln">18   </span></a><span class="s1">k = </span><span class="s3">3 </span><span class="s0"># The number of modes to calculate</span>
+<a name="l19"><span class="ln">19   </span></a>
+<a name="l20"><span class="ln">20   </span></a><span class="s0">### Script (Part (c))</span>
+<a name="l21"><span class="ln">21   </span></a>
+<a name="l22"><span class="ln">22   </span></a><span class="s1">N = math.floor(L / dx)</span>
+<a name="l23"><span class="ln">23   </span></a><span class="s1">A = w*t</span>
+<a name="l24"><span class="ln">24   </span></a><span class="s1">D = E*(w*(math.pow(t</span><span class="s2">, </span><span class="s3">3</span><span class="s1">)))/</span><span class="s3">12</span>
+<a name="l25"><span class="ln">25   </span></a>
+<a name="l26"><span class="ln">26   </span></a><span class="s1">x = np.linspace(</span><span class="s3">0</span><span class="s2">, </span><span class="s1">L</span><span class="s2">, </span><span class="s1">num=N)</span>
+<a name="l27"><span class="ln">27   </span></a>
+<a name="l28"><span class="ln">28   </span></a><span class="s0"># Construct a 4-th derivative operator with 2 fictitious nodes on each side</span>
+<a name="l29"><span class="ln">29   </span></a><span class="s1">Dx4 = cd_1d_matrix(</span><span class="s3">4</span><span class="s2">, </span><span class="s1">N + </span><span class="s3">4</span><span class="s2">, </span><span class="s1">dx)</span>
+<a name="l30"><span class="ln">30   </span></a>
+<a name="l31"><span class="ln">31   </span></a><span class="s1">x_m_vals = np.arange(</span><span class="s3">1</span><span class="s2">, </span><span class="s3">50</span><span class="s1">)</span>
+<a name="l32"><span class="ln">32   </span></a><span class="s1">x_m_vals = x_m_vals*</span><span class="s3">0.1e-6</span>
+<a name="l33"><span class="ln">33   </span></a>
+<a name="l34"><span class="ln">34   </span></a><span class="s1">eigs = np.zeros_like(x_m_vals)</span>
+<a name="l35"><span class="ln">35   </span></a><span class="s2">for </span><span class="s1">xid </span><span class="s2">in </span><span class="s1">range(len(x_m_vals)):</span>
+<a name="l36"><span class="ln">36   </span></a>    <span class="s1">x_m = x_m_vals[xid]</span>
+<a name="l37"><span class="ln">37   </span></a>
+<a name="l38"><span class="ln">38   </span></a>    <span class="s0"># Build mass perturbation</span>
+<a name="l39"><span class="ln">39   </span></a>    <span class="s1">p = np.ones(N+</span><span class="s3">4</span><span class="s2">, </span><span class="s1">dtype=np.double)</span>
+<a name="l40"><span class="ln">40   </span></a>    <span class="s1">p = p/rho</span>
+<a name="l41"><span class="ln">41   </span></a>    <span class="s1">i_m = int(math.floor(x_m / dx)) + </span><span class="s3">2 </span><span class="s0"># 2 Fictitious nodes at left boundary</span>
+<a name="l42"><span class="ln">42   </span></a>    <span class="s1">p[i_m] = p[i_m+</span><span class="s3">1</span><span class="s1">] = </span><span class="s3">1</span><span class="s1">/(rho + m/(</span><span class="s3">2</span><span class="s1">*dx*A))</span>
+<a name="l43"><span class="ln">43   </span></a>    <span class="s1">p = sparse.diags(p</span><span class="s2">, </span><span class="s1">format=</span><span class="s4">&quot;csr&quot;</span><span class="s2">, </span><span class="s1">dtype=np.double)</span>
+<a name="l44"><span class="ln">44   </span></a>
+<a name="l45"><span class="ln">45   </span></a>    <span class="s1">B = p.dot(Dx4)</span>
+<a name="l46"><span class="ln">46   </span></a>
+<a name="l47"><span class="ln">47   </span></a>    <span class="s0"># Apply 0th &amp; 1st order homogenous BCs on the left boundary</span>
+<a name="l48"><span class="ln">48   </span></a>    <span class="s1">B = apply_1d_homogenous_bcs(B</span><span class="s2">, </span><span class="s1">[</span><span class="s3">0</span><span class="s2">, </span><span class="s3">1</span><span class="s1">]</span><span class="s2">, </span><span class="s3">0</span><span class="s1">)</span>
+<a name="l49"><span class="ln">49   </span></a>    <span class="s0"># Apply 2nd &amp; 3rd order homogenous BCs on the right boundary</span>
+<a name="l50"><span class="ln">50   </span></a>    <span class="s1">B = apply_1d_homogenous_bcs(B</span><span class="s2">, </span><span class="s1">[</span><span class="s3">2</span><span class="s2">, </span><span class="s3">3</span><span class="s1">]</span><span class="s2">, </span><span class="s3">1</span><span class="s1">)</span>
+<a name="l51"><span class="ln">51   </span></a>
+<a name="l52"><span class="ln">52   </span></a>    <span class="s0"># Calculate eigenvalues</span>
+<a name="l53"><span class="ln">53   </span></a>    <span class="s1">[e</span><span class="s2">, </span><span class="s1">v] = linalg.eigs(B</span><span class="s2">, </span><span class="s1">k=k</span><span class="s2">, </span><span class="s1">which=</span><span class="s4">&quot;SM&quot;</span><span class="s1">)  </span><span class="s0"># which=&quot;SM&quot; ensures that the low-frequency modes are selected.</span>
+<a name="l54"><span class="ln">54   </span></a>
+<a name="l55"><span class="ln">55   </span></a>    <span class="s1">e = np.sort(e)</span>
+<a name="l56"><span class="ln">56   </span></a>
+<a name="l57"><span class="ln">57   </span></a>    <span class="s1">eigs[xid] = e[</span><span class="s3">0</span><span class="s1">] * D / A</span>
+<a name="l58"><span class="ln">58   </span></a>
+<a name="l59"><span class="ln">59   </span></a><span class="s0"># Turn eigenvalues into frequencies</span>
+<a name="l60"><span class="ln">60   </span></a><span class="s1">f_m = (</span><span class="s3">0.5</span><span class="s1">/math.pi) * np.sqrt(np.real(eigs))</span>
+<a name="l61"><span class="ln">61   </span></a>
+<a name="l62"><span class="ln">62   </span></a><span class="s0">### Part (d)</span>
+<a name="l63"><span class="ln">63   </span></a>
+<a name="l64"><span class="ln">64   </span></a><span class="s0"># Just use the fourth order derivative from earlier</span>
+<a name="l65"><span class="ln">65   </span></a><span class="s0"># Apply 0th &amp; 1st order derivative homogenous BCs on the left boundary</span>
+<a name="l66"><span class="ln">66   </span></a><span class="s1">Dx4 = apply_1d_homogenous_bcs(Dx4</span><span class="s2">, </span><span class="s1">[</span><span class="s3">1</span><span class="s2">, </span><span class="s3">0</span><span class="s1">]</span><span class="s2">, </span><span class="s3">0</span><span class="s1">)</span>
+<a name="l67"><span class="ln">67   </span></a>
+<a name="l68"><span class="ln">68   </span></a><span class="s0"># Apply 2nd &amp; 3rd order derivative homogenous BCs on the right boundary</span>
+<a name="l69"><span class="ln">69   </span></a><span class="s1">Dx4 = apply_1d_homogenous_bcs(Dx4</span><span class="s2">, </span><span class="s1">[</span><span class="s3">2</span><span class="s2">, </span><span class="s3">3</span><span class="s1">]</span><span class="s2">, </span><span class="s3">1</span><span class="s1">)</span>
+<a name="l70"><span class="ln">70   </span></a>
+<a name="l71"><span class="ln">71   </span></a><span class="s0"># Find the low-frequency eigenmodes</span>
+<a name="l72"><span class="ln">72   </span></a><span class="s1">[w2d_A</span><span class="s2">, </span><span class="s1">y] = linalg.eigs(Dx4/rho</span><span class="s2">, </span><span class="s1">k=k</span><span class="s2">, </span><span class="s1">which=</span><span class="s4">&quot;SM&quot;</span><span class="s1">) </span><span class="s0"># which=&quot;SM&quot; ensures that the low-frequency modes are selected.</span>
+<a name="l73"><span class="ln">73   </span></a><span class="s1">w2d_A = np.real(w2d_A)</span>
+<a name="l74"><span class="ln">74   </span></a><span class="s1">w2d_A = (</span><span class="s3">0.5</span><span class="s1">/math.pi) * np.sqrt(w2d_A / A * D ) </span><span class="s0"># Calculate frequencies</span>
+<a name="l75"><span class="ln">75   </span></a>
+<a name="l76"><span class="ln">76   </span></a><span class="s1">y = L * y[:</span><span class="s2">, </span><span class="s3">0</span><span class="s1">] / (np.sum(np.real(y[:</span><span class="s2">, </span><span class="s3">0</span><span class="s1">])) * dx)</span>
+<a name="l77"><span class="ln">77   </span></a><span class="s1">f_m_analytic = np.sqrt((w2d_A[</span><span class="s3">0</span><span class="s1">]*w2d_A[</span><span class="s3">0</span><span class="s1">]) / (</span><span class="s3">1 </span><span class="s1">+ m/(rho*A*L)*y*y))</span>
+<a name="l78"><span class="ln">78   </span></a>
+<a name="l79"><span class="ln">79   </span></a><span class="s0">### Plot the results</span>
+<a name="l80"><span class="ln">80   </span></a><span class="s1">plt.plot(x_m_vals</span><span class="s2">, </span><span class="s1">f_m/</span><span class="s3">1e6</span><span class="s2">, </span><span class="s1">label=</span><span class="s4">&quot;Numerical Solution&quot;</span><span class="s1">)</span>
+<a name="l81"><span class="ln">81   </span></a><span class="s1">plt.plot(x[:]</span><span class="s2">, </span><span class="s1">f_m_analytic[:]/</span><span class="s3">1e6</span><span class="s2">, </span><span class="s1">label=</span><span class="s4">&quot;Analytic Solution&quot;</span><span class="s1">)</span>
+<a name="l82"><span class="ln">82   </span></a>
+<a name="l83"><span class="ln">83   </span></a><span class="s1">plt.title(</span><span class="s4">&quot;Lowest resonant frequency vs. mass position&quot;</span><span class="s1">)</span>
+<a name="l84"><span class="ln">84   </span></a><span class="s1">plt.xlabel(</span><span class="s4">&quot;x_m [m]&quot;</span><span class="s1">)</span>
+<a name="l85"><span class="ln">85   </span></a><span class="s1">plt.ylabel(</span><span class="s4">&quot;f [MHz]&quot;</span><span class="s1">)</span>
+<a name="l86"><span class="ln">86   </span></a><span class="s1">plt.legend()</span>
+<a name="l87"><span class="ln">87   </span></a><span class="s1">plt.show()</span>
+<a name="l88"><span class="ln">88   </span></a>
+<a name="l89"><span class="ln">89   </span></a></pre>
+</body>
+</html>

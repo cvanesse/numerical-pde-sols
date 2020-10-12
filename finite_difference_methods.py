@@ -19,8 +19,10 @@ def cd_1d_molecule(n):
 
     return mol
 
-# Constructs a finite-difference nth order derivative operator matrix with size NxN
+# Constructs a finite-difference nth order central-difference derivative operator matrix with size NxN
 def cd_1d_matrix(n, N, h):
+    if (n == 0):
+        sparse.diags([1], [0], shape=(N, N), format="csr")
     mol = cd_1d_molecule(n)
     idx = np.arange(len(mol)) - math.floor(len(mol)/2)
     return sparse.diags(mol, idx, shape=(N, N), format="csr") / math.pow(h, n)
@@ -75,3 +77,66 @@ def apply_1d_homogenous_bcs(A, orders, side):
         A[:dA.shape[0], :dA.shape[1]] = A[:dA.shape[0], :dA.shape[1]] + dA
 
     return A
+
+# Constructs an nth-order central-difference derivative operator matrix for an arbitrary dimension domain.
+def cd_1d_matrix_ND(n, dim, domain):
+    # n is the order of the derivative
+    # dim is the dimension of the derivative [starting from 0]
+    # domain is a dict containing:
+    # domain["shape"]: integer containing the number of nodes for each dimension in the domain
+    # domain["size"]: integer containing the number of nodes in the domain
+    # domain["h"]: vector containing the real-space discretization size for each dimension
+
+    N = domain["size"]
+    h = domain["h"][dim]
+
+    if (n == 0):
+        sparse.diags([1], [0], shape=(N, N), format="csr")
+
+    mol = cd_1d_molecule(n) # Get the 1D central-difference computational molecule for derivative of order n
+
+    idx = np.arange(len(mol)) - math.floor(len(mol)/2) # Index the entries of the computational molecule
+
+    # Multiply the index by an appropriate number to reference higher indices.
+    idx = idx * np.prod(domain["shape"][:dim])
+
+    return sparse.diags(mol, idx, shape=(N, N), format="csr") / math.pow(h, n)
+
+# Gets the 1D node number from the position and domain
+def get_node_number(pos, domain):
+    pos = np.array(pos)
+    if (len(pos) != len(domain['h'])):
+        print("ERROR: Mismatch between point dimensions and domain dimensions.")
+    pos = np.round(pos / domain['h'])
+    for i in range(len(pos)-1):
+        pos[i+1:] = domain['shape'][i]*pos[i+1:]
+    return np.sum(pos)
+
+# Apply first-order radiating boundary conditions to the vector u on a given domain at the boundary bid
+def apply_radiating_BC(u, v, dim, bid, n_cdt, domain):
+    # u is the solution at the current timestep
+    # v is the solution at the previous timestep
+    # bid is a boundary id, 0 for lower and 1 for upper
+    # n_cdt is the "velocity factor" encountered in the expressions for first order radiating boundary conditions
+    # domain is the domain dict.
+
+    h = domain['h'][dim]
+    k = domain['shape'][dim] * bid - 1
+
+    # Permute the input matrices for easier indexing
+    u = np.swapaxes(u, 0, dim)
+    v = np.swapaxes(v, 0, dim)
+
+    # Second, build the coefficients of the general first-order RBCs
+    A = ((-1.0) ** bid) * (n_cdt + (1 / h))
+    B = ((-1.0) ** bid) * (-n_cdt + (1 / h))
+    C = (((-1.0) ** bid) * n_cdt + (1 / h))
+    D = (((-1.0) ** bid) * n_cdt - (1 / h))
+
+    shift = (-1)**(bid)
+
+    u[k] = (1/A)*(B*u[k+shift] + C*v[k] + D*v[k+shift])
+
+    u = np.swapaxes(u, 0, dim)
+    v = np.swapaxes(v, 0, dim)
+    return u
