@@ -32,9 +32,7 @@ Nt = 175 # Number of timesteps [Takes priority over T if provided]
 
 # Source settings (Specific to simulation #1)
 wl = 1e-6 # Pulse wavelength (in m)
-#wl = 1e100
 omega = 2*math.pi*c/wl # Pulse frequency (in rads/s)
-print(omega)
 w = 8e-15 # Pulse width (in seconds)
 T0 = 4e-15 # Pulse time (in seconds)
 source_position = np.array([2.5e-6, 5e-6]) # The source position in m
@@ -103,8 +101,6 @@ plt.plot(X, u[2][:, 0])
 plt.show()
 
 fig = plt.figure()
-#fig, ax = plt.subplots()
-#CS = ax.contour(X, Y, u[2])
 ax = plt.axes(projection='3d')
 ax.contour3D(X, Y, u[2], 50)
 ax.set_xlabel('x')
