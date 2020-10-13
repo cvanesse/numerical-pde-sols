@@ -3,8 +3,6 @@
 ## IMPORT MODULES
 from finite_difference_methods import *
 from matplotlib import pyplot as plt
-from mpl_toolkits import mplot3d
-
 
 ## SIMULATION CONFIG
 
@@ -26,8 +24,7 @@ Ny = math.floor(Y / dy)
 dy = Y / Ny
 
 # Time settings
-dt = -1 # Timestep in seconds [set to -1 to use max allowable by CFL condition]
-T = -1 # Simulation time in seconds
+dt = 0 # Timestep in seconds [Will be updated according to CFL condition if too low]
 Nt = 175 # Number of timesteps [Takes priority over T if provided]
 
 # Source settings (Specific to simulation #1)
@@ -38,7 +35,8 @@ T0 = 4e-15 # Pulse time (in seconds)
 source_position = np.array([2.5e-6, 5e-6]) # The source position in m
 
 ## CODE
-
+print("------------------------")
+print("-- Parsing Inputs...")
 inputs = locals()
 
 # Index the domain for use throughout the code.
@@ -48,9 +46,12 @@ domain = {
     "h": np.array([dx, dy])
 }
 
-if dt == -1:
-    # Calculate timestep based on CFL condition
-    dt = (n/c) * (np.sum(np.power(domain['h'], -2)) ** (-0.5)) # Generalized N-Dimensional CFL Condition
+dt_CFL = (n/c) * (np.sum(np.power(domain['h'], -2)) ** (-0.5)) # N-Dimensional CFL Condition
+if dt < dt_CFL:
+    print("WARNING: Input timestep {:0.2e} is less than allowed by CFL condition. Updating dt...".format(dt))
+    dt = dt_CFL
+
+print("Timestep: \t\t\t {:0.2e} seconds".format(dt))
 
 if 'Nt' not in inputs:
     if 'T' in inputs:
@@ -60,6 +61,11 @@ if 'Nt' not in inputs:
         exit()
 else:
     T = dt*Nt
+
+print("Simulation Time: \t {:0.2e} seconds".format(T))
+
+print("------------------------")
+print("-- Initializing Solutions and Operators...")
 
 # Allocate space for solution vectors
 u = [np.zeros(domain["shape"]),
@@ -72,6 +78,9 @@ M = 2*cd_1d_matrix_ND(0, 0, domain) + (c**2/n**2)*(dt**2) * laplacian
 
 # Calculate source information (Specific to simulation 1)
 source_node = math.floor(get_node_number(source_position, domain))
+
+print("------------------------")
+print("-- Running FDTD simulation...")
 
 for i in range(Nt):
     t = dt*i # The time (in seconds)
@@ -93,6 +102,9 @@ for i in range(Nt):
     u[0] = np.copy(u[1])
     u[1] = np.copy(u[2])
 
+print("------------------------")
+print("-- Plotting Results...")
+
 X = np.arange(domain['shape'][0])*domain['h'][0]
 Y = np.arange(domain['shape'][1])*domain['h'][1]
 
@@ -100,13 +112,13 @@ fig = plt.figure()
 plt.plot(X, u[2][:, 0])
 plt.show()
 
+X, Y = np.meshgrid(X, Y)
 fig = plt.figure()
 ax = plt.axes(projection='3d')
-ax.contour3D(X, Y, u[2], 50)
+ax.contourf(X, Y, u[2], 100)
 ax.set_xlabel('x')
 ax.set_ylabel('y')
 ax.set_zlabel('u(x,y)')
 plt.ion()
+ax.view_init(50, -45)
 plt.show()
-
-
