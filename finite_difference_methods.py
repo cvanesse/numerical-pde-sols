@@ -133,8 +133,12 @@ def apply_radiating_BC(u, v, dim, bid, n_cdt, domain):
     C = (((-1.0) ** bid) * n_cdt + (1 / h))
     D = (((-1.0) ** bid) * n_cdt - (1 / h))
 
+    # The internal nodes are located at k+1 when the left (bid=0) boundary is used
+    # Otherwise they are located at k-1
     shift = (-1)**(bid)
 
+    # Indexing an N-dimensional matrix u with a single index will take the cross section
+    #   At that point along the first dimension.
     u[k] = (1/A)*(B*u[k+shift] + C*v[k] + D*v[k+shift])
 
     u = np.swapaxes(u, 0, dim)

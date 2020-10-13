@@ -25,7 +25,7 @@ dy = Y / Ny
 
 # Time settings
 dt = 0 # Timestep in seconds [Will be updated according to CFL condition if too low]
-Nt = 175 # Number of timesteps [Takes priority over T if provided]
+Nt = 100 # Number of timesteps [Takes priority over T if provided]
 
 # Source settings (Specific to simulation #1)
 wl = 1e-6 # Pulse wavelength (in m)
@@ -33,6 +33,7 @@ omega = 2*math.pi*c/wl # Pulse frequency (in rads/s)
 w = 8e-15 # Pulse width (in seconds)
 T0 = 4e-15 # Pulse time (in seconds)
 source_position = np.array([2.5e-6, 5e-6]) # The source position in m
+A = 1 # Pulse amplitude
 
 ## CODE
 print("------------------------")
@@ -73,6 +74,7 @@ u = [np.zeros(domain["shape"]),
      np.zeros(domain["shape"])] # Solution is a list of arrays
 
 # Construct stepping operator [M]
+### Problem: My 1D off-diagonal elements (for X) are included in the coupling between lines!!!
 laplacian = cd_1d_matrix_ND(2, 0, domain) + cd_1d_matrix_ND(2, 1, domain)
 M = 2*cd_1d_matrix_ND(0, 0, domain) + (c**2/n**2)*(dt**2) * laplacian
 
@@ -90,13 +92,13 @@ for i in range(Nt):
     u[2] = np.reshape(u[2][:], domain['shape']) # Reshape into matrices for simpler indexing.
 
     # Apply the radiating boundary conditions for each boundary
-    apply_radiating_BC(u[2], u[1], 0, 0, n / (c * dt), domain) # Left boundary
-    apply_radiating_BC(u[2], u[1], 0, 1, n / (c * dt), domain) # Right boundary
-    apply_radiating_BC(u[2], u[1], 1, 0, n / (c * dt), domain) # Top boundary
-    apply_radiating_BC(u[2], u[1], 1, 1, n / (c * dt), domain) # Bottom boundary
+    #u[2] = apply_radiating_BC(u[2], u[1], 0, 0, n / (c * dt), domain) # Left boundary
+    #u[2] = apply_radiating_BC(u[2], u[1], 0, 1, n / (c * dt), domain) # Right boundary
+    #u[2] = apply_radiating_BC(u[2], u[1], 1, 0, n / (c * dt), domain) # Top boundary
+    #u[2] = apply_radiating_BC(u[2], u[1], 1, 1, n / (c * dt), domain) # Bottom boundary
 
     # Set the source nodes to the appropriate value
-    u[2].flat[source_node] = math.exp(-(((t-T0)/(w/2))**2))*math.sin(omega*t)
+    u[2].flat[source_node] = A*math.exp(-(((t-T0)/(w/2))**2))*math.sin(omega*t)
 
     # Update solution for the next timestep
     u[0] = np.copy(u[1])
