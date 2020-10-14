@@ -180,26 +180,29 @@ def apply_radiating_BC(u, v, dim, bid, n_cdt, domain):
     # domain is the domain dict.
 
     h = domain['h'][dim]
-    k = domain['shape'][dim] * bid - 1
+    k = (domain['shape'][dim] - 1) * bid
 
     # Permute the input matrices for easier indexing
-    u = np.swapaxes(u, 0, dim)
-    v = np.swapaxes(v, 0, dim)
-
-    # Second, build the coefficients of the general first-order RBCs
-    A = ((-1.0) ** bid) * (n_cdt + (1 / h))
-    B = ((-1.0) ** bid) * (-n_cdt + (1 / h))
-    C = (((-1.0) ** bid) * n_cdt + (1 / h))
-    D = (((-1.0) ** bid) * n_cdt - (1 / h))
+    if dim:
+        u = np.swapaxes(u, 0, dim)
+        v = np.swapaxes(v, 0, dim)
 
     # The internal nodes are located at k+1 when the left (bid=0) boundary is used
     # Otherwise they are located at k-1
     shift = (-1)**(bid)
 
+    # Build the coefficients of the general first-order RBCs
+    A = (-shift) * (n_cdt + (1 / h))
+    B = (-shift) * (-n_cdt + (1 / h))
+    C = ((-shift) * n_cdt + (1 / h))
+    D = ((-shift) * n_cdt - (1 / h))
+
     # Indexing an N-dimensional matrix u with a single index will take the cross section
     #   At that point along the first dimension.
     u[k] = (1/A)*(B*u[k+shift] + C*v[k] + D*v[k+shift])
 
-    u = np.swapaxes(u, 0, dim)
-    v = np.swapaxes(v, 0, dim)
+    if dim:
+        u = np.swapaxes(u, 0, dim)
+        v = np.swapaxes(v, 0, dim)
+
     return u

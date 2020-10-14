@@ -25,7 +25,7 @@ dy = Y / Ny
 
 # Time settings
 dt = 0 # Timestep in seconds [Will be updated according to CFL condition if too low]
-Nt = 175 # Number of timesteps [Takes priority over T if provided]
+Nt = 100 # Number of timesteps [Takes priority over T if provided]
 
 # Source settings (Specific to simulation #1)
 wl = 1e-6 # Pulse wavelength (in m)
@@ -94,7 +94,7 @@ for i in range(Nt):
     # Apply the radiating boundary conditions for each boundary [Not working]
     #u[2] = apply_radiating_BC(u[2], u[1], 0, 0, n / (c * dt), domain) # Left boundary
     #u[2] = apply_radiating_BC(u[2], u[1], 0, 1, n / (c * dt), domain) # Right boundary
-    #u[2] = apply_radiating_BC(u[2], u[1], 1, 0, n / (c * dt), domain) # Top boundary
+    u[2] = apply_radiating_BC(u[2], u[1], 1, 0, n / (c * dt), domain) # Top boundary
     #u[2] = apply_radiating_BC(u[2], u[1], 1, 1, n / (c * dt), domain) # Bottom boundary
 
     # Set the source nodes to the appropriate value
