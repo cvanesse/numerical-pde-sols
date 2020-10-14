@@ -24,15 +24,15 @@ Ny = math.floor(Y / dy)
 dy = Y / Ny
 
 # Time settings
-dt = -1e-16 # Timestep in seconds [Will be updated according to CFL condition if too low]
+dt = -0.5e-16 # Timestep in seconds [Will be updated according to CFL condition if too low]
 Nt = 100 # Number of timesteps [Takes priority over T if provided]
 
 # Source settings (Specific to simulation #1)
 wl = 1e-6 # Pulse wavelength (in m)
 omega = 2*math.pi*c/wl # Pulse frequency (in rads/s)
 w = 8e-15 # Pulse width (in seconds)
-T0 = 0e-15 # Pulse time (in seconds)
-source_position = np.array([6e-6, 5e-6]) # The source position in m
+T0 = 4e-15 # Pulse time (in seconds)
+source_position = np.array([5e-6, 5e-6]) # The source position in m
 A = 1 # Pulse amplitude
 
 ## CODE
@@ -81,11 +81,12 @@ u = [np.zeros(domain["shape"]),
      np.zeros(domain["shape"])] # Solution is a list of arrays
 
 # Construct stepping operator [M]
-laplacian = cd_1d_matrix_ND_v2(2, 0, domain) + cd_1d_matrix_ND_v2(2, 1, domain)
-#laplacian = cd_1d_matrix_ND(2, 0, domain) + cd_1d_matrix_ND(2, 1, domain)
+#laplacian = cd_1d_matrix_ND_v2(2, 0, domain) + cd_1d_matrix_ND_v2(2, 1, domain)
+laplacian = cd_1d_matrix_ND(2, 0, domain) + cd_1d_matrix_ND(2, 1, domain)
 M = 2*sparse.eye(domain['size']) + (c**2/n**2)*(dt**2) * laplacian
 
 # Calculate source information (Specific to simulation 1)
+#source_node = math.floor(get_node_number(source_position, domain))
 source_node = np.round(source_position / domain['h']).astype('int64')
 
 print("Domain: " + str(domain))
@@ -101,9 +102,7 @@ for i in range(Nt):
     t = dt*i # The time (in seconds)
 
     # First, apply the stepping operator to the internal nodes
-    u = [i.reshape([domain['size']]) for i in u]
-    u[2] = M.T.dot(u[1]) - u[0] # Apply stepping operator
-    u = [i.reshape(domain['shape']) for i in u]
+    u[2].flat = (M.dot(u[1].flat) - u[0].flat) # Apply stepping operator
 
     # Apply the radiating boundary conditions for each boundary
     u[2] = apply_radiating_BC(u[2], u[1], 0, 0, n / (c * dt), domain) # Bottom boundary
@@ -112,7 +111,7 @@ for i in range(Nt):
     u[2] = apply_radiating_BC(u[2], u[1], 0, 1, n / (c * dt), domain)  # Top boundary
 
     # Set the source nodes to the appropriate value
-    u[2][source_node[1], source_node[0]] = A*math.exp(-(((t-T0)/(w/2))**2))*math.sin(omega*t)
+    u[2][source_node[0], source_node[1]] = A*math.exp(-(((t-T0)/(w/2))**2))*math.sin(omega*t)
 
     # Update solution for the next timestep
     u[0] = np.copy(u[1])
@@ -130,4 +129,22 @@ ax = plt.axes()
 ax.contourf(X, Y, u[2], 100)
 ax.set_xlabel('x')
 ax.set_ylabel('y')
+plt.show()
+
+exit()
+
+fig = plt.figure()
+plt.plot(X, u[2][:, 0])
+plt.show()
+
+
+X, Y = np.meshgrid(X, Y)
+fig = plt.figure()
+ax = plt.axes(projection='3d')
+ax.contourf(X, Y, u[2], 100)
+ax.set_xlabel('x')
+ax.set_ylabel('y')
+ax.set_zlabel('u(x,y)')
+plt.ion()
+ax.view_init(50, -45)
 plt.show()
