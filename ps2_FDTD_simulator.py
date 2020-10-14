@@ -25,7 +25,7 @@ dy = Y / Ny
 
 # Time settings
 dt = 0 # Timestep in seconds [Will be updated according to CFL condition if too low]
-Nt = 100 # Number of timesteps [Takes priority over T if provided]
+Nt = 175 # Number of timesteps [Takes priority over T if provided]
 
 # Source settings (Specific to simulation #1)
 wl = 1e-6 # Pulse wavelength (in m)
@@ -75,8 +75,8 @@ u = [np.zeros(domain["shape"]),
 
 # Construct stepping operator [M]
 ### Problem: My 1D off-diagonal elements (for X) are included in the coupling between lines!!!
-laplacian = cd_1d_matrix_ND(2, 0, domain) + cd_1d_matrix_ND(2, 1, domain)
-M = 2*cd_1d_matrix_ND(0, 0, domain) + (c**2/n**2)*(dt**2) * laplacian
+laplacian = cd_1d_matrix_ND_v2(2, 0, domain) + cd_1d_matrix_ND_v2(2, 1, domain)
+M = 2*cd_1d_matrix_ND_v2(0, 0, domain) + (c**2/n**2)*(dt**2) * laplacian
 
 # Calculate source information (Specific to simulation 1)
 source_node = math.floor(get_node_number(source_position, domain))
@@ -91,7 +91,7 @@ for i in range(Nt):
     u[2] = M.dot(u[1][:].flat) - u[0][:].flat # Apply stepping operator
     u[2] = np.reshape(u[2][:], domain['shape']) # Reshape into matrices for simpler indexing.
 
-    # Apply the radiating boundary conditions for each boundary
+    # Apply the radiating boundary conditions for each boundary [Not working]
     #u[2] = apply_radiating_BC(u[2], u[1], 0, 0, n / (c * dt), domain) # Left boundary
     #u[2] = apply_radiating_BC(u[2], u[1], 0, 1, n / (c * dt), domain) # Right boundary
     #u[2] = apply_radiating_BC(u[2], u[1], 1, 0, n / (c * dt), domain) # Top boundary

@@ -78,6 +78,65 @@ def apply_1d_homogenous_bcs(A, orders, side):
 
     return A
 
+# Builds a square block-diagonal matrix using a list of blocks, diagonal offset, and the number of diagonal blocks N
+def block_diag(blocks, diags, N, format="csr"):
+    # Verify proper inputs
+    n = np.shape(blocks[0])
+    if (len(n) != 2) :
+        print("ERROR: Invalid block dimension for block_diag! Must be 2D")
+        exit()
+    for b in blocks:
+        m = np.shape(b)
+        if m[0] != m[1]:
+            print("ERROR: Invalid block shape for block_diag! Must be square matrices")
+            exit()
+        if m[0] != n[0]:
+            print("ERROR: Invalid block list for block_diag! Must be a list of square matrices of the same size.")
+            exit()
+
+    # Build block-diagonal matrix using provided blocks and kronecker products.
+    M = sparse.csr_matrix((n[0]*N, n[0]*N))
+    for did in range(len(diags)):
+        m = sparse.diags([1], diags[did], (N, N), format=format)
+        m = sparse.kron(m, blocks[did], format=format)
+        M = m+M
+
+    return M
+
+# Constructs an nth-order central-difference derivative operator matrix for a domain of arbitrary dimensionality
+def cd_1d_matrix_ND_v2(n, dim, domain):
+    # n is the order of the derivative
+    # dim is the dimension of the derivative [starting from 0]
+    # domain is a dict containing:
+    # domain["shape"]: integer containing the number of nodes for each dimension in the domain
+    # domain["size"]: integer containing the number of nodes in the domain
+    # domain["h"]: vector containing the real-space discretization size for each dimension
+
+    h = domain["h"][dim]
+
+    # First, construct the identity matrix of one dimension lower than the derivative of interest
+    if dim == 0:
+        eye = sparse.csr_matrix([1])
+    else:
+        eye = sparse.eye(np.round(np.prod(domain["shape"][:dim])), format="csr")
+
+    # Then, use the computational molecule for the derivative of interest to construct the blocks for this dimension
+    mol = cd_1d_molecule(n)
+    blocks = [mol[i]*eye for i in range(len(mol))]
+
+    idx = np.arange(len(blocks)) - math.floor(len(blocks) / 2)  # Index the entries of the computational molecule
+
+    # Build the operator for the dimension of interest
+    M = block_diag(blocks, idx, domain["shape"][dim])
+
+    # Build the operator for the entire domain, by using the previous operator as diagonal blocks (if necessary)
+    if (dim+1 < len(domain["shape"])):
+        M = block_diag([M], [0], np.round(np.prod(domain["shape"][dim+1:])))
+
+    # Return the result.
+    return M / math.pow(h, n)
+
+
 # Constructs an nth-order central-difference derivative operator matrix for an arbitrary dimension domain.
 def cd_1d_matrix_ND(n, dim, domain):
     # n is the order of the derivative
