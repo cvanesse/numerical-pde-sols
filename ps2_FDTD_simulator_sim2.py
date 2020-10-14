@@ -15,8 +15,8 @@ n = 1 # Refractive index of the domain
 # Spatial domain
 dx = 0.05e-6
 dy = 0.05e-6
-X = 10e-6
-Y = 10e-6
+X = 30e-6
+Y = 30e-6
 
 Nx = math.floor(X / dx)
 dx = X / Nx
