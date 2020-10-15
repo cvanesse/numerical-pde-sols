@@ -101,9 +101,9 @@ for i in range(Nt):
     t = dt*i # The time (in seconds)
 
     # First, apply the stepping operator to the internal nodes
-    u = [i.reshape([domain['size']]) for i in u]
-    u[2] = M.T.dot(u[1]) - u[0] # Apply stepping operator
-    u = [i.reshape(domain['shape']) for i in u]
+    u = [i.reshape([domain['size']], order="F") for i in u]
+    u[2] = M.dot(u[1]) - u[0] # Apply stepping operator
+    u = [i.reshape(domain['shape'], order="F") for i in u]
 
     # Apply the radiating boundary conditions for each boundary
     u[2] = apply_radiating_BC(u[2], u[1], 0, 0, n / (c * dt), domain) # Bottom boundary

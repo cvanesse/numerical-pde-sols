@@ -102,7 +102,9 @@ for i in range(Nt):
     t = dt*i # The time (in seconds)
 
     # First, apply the stepping operator to the internal nodes
-    u[2].flat = (M.dot(u[1].flat) - u[0].flat) # Apply stepping operator
+    u = [i.reshape([domain['size']], order="F") for i in u]
+    u[2] = M.dot(u[1]) - u[0] # Apply stepping operator
+    u = [i.reshape(domain['shape'], order="F") for i in u]
 
     # Apply the radiating boundary conditions for each boundary
     u[2] = apply_radiating_BC(u[2], u[1], 0, 0, n / (c * dt), domain) # Left boundary
@@ -122,6 +124,17 @@ print("-- Plotting Results...")
 
 X = np.arange(domain['shape'][0])*domain['h'][0]
 Y = np.arange(domain['shape'][1])*domain['h'][1]
+
+
+X, Y = np.meshgrid(X, Y)
+fig = plt.figure()
+ax = plt.axes()
+ax.contourf(X, Y, u[2].T, 100)
+ax.set_xlabel('x')
+ax.set_ylabel('y')
+plt.show()
+
+exit()
 
 fig = plt.figure()
 plt.plot(X, u[2][:, 0])

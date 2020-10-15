@@ -15,8 +15,8 @@ n = 1 # Refractive index of the domain
 # Spatial domain
 dx = 0.05e-6
 dy = 0.05e-6
-X = 10e-6
-Y = 10.05e-6
+X = 15e-6
+Y = 20e-6
 
 Nx = math.floor(X / dx)
 dx = X / Nx
@@ -102,9 +102,9 @@ for i in range(Nt):
     t = dt*i # The time (in seconds)
 
     # First, apply the stepping operator to the internal nodes
-    u = [u[i].flatten(order="F") for i in range(len(u))]
+    u = [i.reshape([domain['size']], order="F") for i in u]
     u[2] = M.dot(u[1]) - u[0] # Apply stepping operator
-    u[2] = np.reshape(u[2], domain['shape'], order="F")
+    u = [i.reshape(domain['shape'], order="F") for i in u]
 
     # Apply the radiating boundary conditions for each boundary
     u[2] = apply_radiating_BC(u[2], u[1], 0, 0, n / (c * dt), domain) # Bottom boundary
