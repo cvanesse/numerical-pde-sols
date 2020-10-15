@@ -3,6 +3,10 @@
 ## IMPORT MODULES
 from finite_difference_methods import *
 from matplotlib import pyplot as plt
+import time
+
+# For timing the simulation
+start_time = time.time()
 
 ## SIMULATION CONFIG
 
@@ -10,13 +14,17 @@ from matplotlib import pyplot as plt
 c = 2.997925e8
 
 # Physical variables
-n = 1 # Refractive index of the domain
+
+n_bg = 1 # Refractive index of the domain
+n_barrier = 10 # Refractive index of the barrier
+x_barrier = [10e-6, 10.5e-6]
+slot_width = 5e-6
 
 # Spatial domain
 dx = 0.05e-6
 dy = 0.05e-6
-X = 10.05e-6
-Y = 10e-6
+X = 25e-6
+Y = 30e-6
 
 Nx = math.floor(X / dx)
 dx = X / Nx
@@ -25,15 +33,14 @@ dy = Y / Ny
 
 # Time settings
 dt = -1e-16 # Timestep in seconds [Will be updated according to CFL condition if too low]
-Nt = 100 # Number of timesteps [Takes priority over T if provided]
+Nt = 1000 # Number of timesteps [Takes priority over T if provided]
 
 # Source settings (Specific to simulation #1)
 wl = 1e-6 # Pulse wavelength (in m)
 omega = 2*math.pi*c/wl # Pulse frequency (in rads/s)
-w = 8e-15 # Pulse width (in seconds)
-T0 = 0e-15 # Pulse time (in seconds)
-source_position = np.array([6e-6, 5e-6]) # The source position in m
 A = 1 # Pulse amplitude
+source_x = [1e-6]
+source_y = [0.5e-6, 29e-6]
 
 ## CODE
 print("------------------------")
@@ -54,7 +61,7 @@ print("Xmax: \t\t\t {:0.2e}".format(X))
 print("dx: \t\t\t {:0.2e}".format(dx))
 print("Nx: \t\t\t {:d}".format(Nx))
 
-dt_CFL = (n/c) * (np.sum(np.power(domain['h'], -2)) ** (-0.5)) # N-Dimensional CFL Condition
+dt_CFL = (min([n_bg, n_barrier])/c) * (np.sum(np.power(domain['h'], -2)) ** (-0.5)) # N-Dimensional CFL Condition
 if dt > dt_CFL or dt < 0:
     print("WARNING: Input timestep {:0.2e} is larger than allowed by CFL condition (or negative). Updating dt...".format(dt))
     dt = dt_CFL
@@ -80,13 +87,27 @@ u = [np.zeros(domain["shape"]),
      np.zeros(domain["shape"]),
      np.zeros(domain["shape"])] # Solution is a list of arrays
 
+# Construct refractive index matrix
+n = n_bg*np.ones(domain["shape"]) # Start in cartesian coordinates
+
+idx_barrier = np.round(x_barrier/domain['h'][1]).astype('int64')
+y_barrier = 15e-6 + np.array([-slot_width/2, slot_width/2])
+idy_barrier = np.round(y_barrier/domain['h'][0]).astype('int64')
+n[:np.min(idy_barrier), np.min(idx_barrier):np.max(idx_barrier)] = n_barrier
+n[np.max(idy_barrier):, np.min(idx_barrier):np.max(idx_barrier)] = n_barrier
+
+n = np.reshape(n, [domain["size"]], order="F")
+n = np.power(n, -2)
+n = sparse.diags(n, format="csr")
+
 # Construct stepping operator [M]
 laplacian = cd_1d_matrix_ND_v2(2, 0, domain) + cd_1d_matrix_ND_v2(2, 1, domain)
-#laplacian = cd_1d_matrix_ND(2, 0, domain) + cd_1d_matrix_ND(2, 1, domain)
-M = 2*sparse.eye(domain['size']) + (c**2/n**2)*(dt**2) * laplacian
+M = 2*sparse.eye(domain['size']) + c**2*dt**2 * n.dot(laplacian)
 
 # Calculate source information (Specific to simulation 1)
-source_node = np.round(source_position / domain['h']).astype('int64')
+source_idx = np.round(source_x / domain['h']).astype('int64')
+source_idy = np.round(source_y / domain['h']).astype('int64')
+source_idy = [np.min(source_idy), np.max(source_idy)]
 
 print("Domain: " + str(domain))
 print("Operator Size: {:d}, {:d}".format(np.shape(M)[0], np.shape(M)[1]))
@@ -97,22 +118,26 @@ np.set_printoptions(precision=1, suppress=True)
 print("------------------------")
 print("-- Running FDTD simulation...")
 
+milestones = np.arange(10) * math.ceil(Nt/10)
 for i in range(Nt):
+    if np.sum(i == milestones) != 0 and i > 0:
+        print("{:d}%".format(math.ceil(100*(i/Nt))))
     t = dt*i # The time (in seconds)
 
     # First, apply the stepping operator to the internal nodes
-    u = [i.reshape([domain['size']], order="F") for i in u]
+    u = [j.reshape([domain['size']], order="F") for j in u]
     u[2] = M.dot(u[1]) - u[0] # Apply stepping operator
-    u = [i.reshape(domain['shape'], order="F") for i in u]
+    u = [j.reshape(domain['shape'], order="F") for j in u]
 
     # Apply the radiating boundary conditions for each boundary
-    u[2] = apply_radiating_BC(u[2], u[1], 0, 0, n / (c * dt), domain) # Bottom boundary
-    u[2] = apply_radiating_BC(u[2], u[1], 1, 0, n / (c * dt), domain) # Left boundary
-    u[2] = apply_radiating_BC(u[2], u[1], 1, 1, n / (c * dt), domain) # Right boundary
-    u[2] = apply_radiating_BC(u[2], u[1], 0, 1, n / (c * dt), domain)  # Top boundary
+    ## (I'm just using n_bg for my boundary conditions as an approximation
+    u[2] = apply_radiating_BC(u[2], u[1], 0, 0, n_bg / (c * dt), domain) # Bottom boundary
+    u[2] = apply_radiating_BC(u[2], u[1], 1, 0, n_bg / (c * dt), domain) # Left boundary
+    u[2] = apply_radiating_BC(u[2], u[1], 1, 1, n_bg / (c * dt), domain) # Right boundary
+    u[2] = apply_radiating_BC(u[2], u[1], 0, 1, n_bg / (c * dt), domain)  # Top boundary
 
     # Set the source nodes to the appropriate value
-    u[2][source_node[1], source_node[0]] = A*math.exp(-(((t-T0)/(w/2))**2))*math.sin(omega*t)
+    u[2][np.min(source_idy):np.max(source_idy), source_idx] = A*math.sin(omega*t)
 
     # Update solution for the next timestep
     u[0] = np.copy(u[1])
@@ -125,9 +150,24 @@ Y = np.arange(domain['shape'][0])*domain['h'][0]
 X = np.arange(domain['shape'][1])*domain['h'][1]
 
 X, Y = np.meshgrid(X, Y)
+
+print("Plotting 2D Colormap...")
 fig = plt.figure()
 ax = plt.axes()
 ax.contourf(X, Y, u[2], 100)
 ax.set_xlabel('x')
 ax.set_ylabel('y')
 plt.show()
+
+print("Plotting 3D Surface Rendering...")
+fig = plt.figure()
+ax = plt.axes(projection='3d')
+ax.contourf(X, Y, u[2], 100)
+ax.set_xlabel('x')
+ax.set_ylabel('y')
+ax.set_zlabel('u(x,y)')
+plt.ion()
+ax.view_init(50, -45)
+plt.show()
+
+print("Done! Runtime: {:.2f} seconds".format(time.time() - start_time))
