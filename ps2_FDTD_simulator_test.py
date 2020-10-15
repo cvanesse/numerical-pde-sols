@@ -15,8 +15,8 @@ n = 1 # Refractive index of the domain
 # Spatial domain
 dx = 0.05e-6
 dy = 0.05e-6
-X = 10.05e-6
-Y = 10e-6
+X = 10e-6
+Y = 10.05e-6
 
 Nx = math.floor(X / dx)
 dx = X / Nx
@@ -32,7 +32,7 @@ wl = 1e-6 # Pulse wavelength (in m)
 omega = 2*math.pi*c/wl # Pulse frequency (in rads/s)
 w = 8e-15 # Pulse width (in seconds)
 T0 = 4e-15 # Pulse time (in seconds)
-source_position = np.array([5e-6, 5e-6]) # The source position in m
+source_position = np.array([5.6e-6, 5e-6]) # The source position in m
 A = 1 # Pulse amplitude
 
 ## CODE
@@ -81,8 +81,8 @@ u = [np.zeros(domain["shape"]),
      np.zeros(domain["shape"])] # Solution is a list of arrays
 
 # Construct stepping operator [M]
-#laplacian = cd_1d_matrix_ND_v2(2, 0, domain) + cd_1d_matrix_ND_v2(2, 1, domain)
-laplacian = cd_1d_matrix_ND(2, 0, domain) + cd_1d_matrix_ND(2, 1, domain)
+laplacian = cd_1d_matrix_ND_v2(2, 0, domain) + cd_1d_matrix_ND_v2(2, 1, domain)
+#laplacian = cd_1d_matrix_ND(2, 0, domain) + cd_1d_matrix_ND(2, 1, domain)
 M = 2*sparse.eye(domain['size']) + (c**2/n**2)*(dt**2) * laplacian
 
 # Calculate source information (Specific to simulation 1)
@@ -102,7 +102,9 @@ for i in range(Nt):
     t = dt*i # The time (in seconds)
 
     # First, apply the stepping operator to the internal nodes
-    u[2].flat = (M.dot(u[1].flat) - u[0].flat) # Apply stepping operator
+    u = [u[i].flatten(order="F") for i in range(len(u))]
+    u[2] = M.dot(u[1]) - u[0] # Apply stepping operator
+    u[2] = np.reshape(u[2], domain['shape'], order="F")
 
     # Apply the radiating boundary conditions for each boundary
     u[2] = apply_radiating_BC(u[2], u[1], 0, 0, n / (c * dt), domain) # Bottom boundary
