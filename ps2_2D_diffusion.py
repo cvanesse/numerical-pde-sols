@@ -1,4 +1,4 @@
-# The general 2D FDTD simulator code for ECE 570 problem set #2
+# The general 2D FDTD diffusion simulator code for ECE 570 problem set #2
 
 ## IMPORT MODULES
 from finite_difference_methods import *
@@ -8,17 +8,9 @@ import time
 # For timing the simulation
 start_time = time.time()
 
-## SIMULATION CONFIG
-
-# Physical constants
-c = 2.997925e8
-
-# Physical variables
-n = 1 # Refractive index of the domain
-
 # Spatial domain
-dx = 0.05e-6
-dy = 0.05e-6
+dx = 1e-6
+dy = 1e-6
 X = 10e-6
 Y = 10e-6
 
@@ -28,16 +20,15 @@ Ny = math.floor(Y / dy)
 dy = Y / Ny
 
 # Time settings
-dt = -0.5e-16 # Timestep in seconds [Will be updated according to CFL condition if too low]
-Nt = 175 # Number of timesteps [Takes priority over T if provided]
+dt = 1e-19 # Timestep in seconds [Will be updated according to CFL condition if too low]
+Nt = 500000 # Number of timesteps [Takes priority over T if provided]
 
-# Source settings (Specific to simulation #1)
-wl = 1e-6 # Pulse wavelength (in m)
-omega = 2*math.pi*c/wl # Pulse frequency (in rads/s)
-w = 8e-15 # Pulse width (in seconds)
-T0 = 4e-15 # Pulse time (in seconds)
-source_position = np.array([2.5e-6, 5e-6]) # The source position in m
-A = 1 # Pulse amplitude
+# Initial conditions [Just a point in the center]
+x_init = 5e-6
+y_init = 5e-6
+
+# Diffusion parameter
+D = 50
 
 ## CODE
 print("------------------------")
@@ -46,9 +37,9 @@ inputs = locals()
 
 # Index the domain for use throughout the code.
 domain = {
-    "shape": np.array([Nx, Ny]),
-    "size": np.prod(np.array([Nx, Ny])),
-    "h": np.array([dx, dy])
+    "shape": np.array([Ny, Nx]),
+    "size": np.prod(np.array([Ny, Nx])),
+    "h": np.array([dy, dx])
 }
 
 print("Ymax: \t\t\t {:0.2e}".format(Y))
@@ -58,10 +49,10 @@ print("Xmax: \t\t\t {:0.2e}".format(X))
 print("dx: \t\t\t {:0.2e}".format(dx))
 print("Nx: \t\t\t {:d}".format(Nx))
 
-dt_CFL = (n/c) * (np.sum(np.power(domain['h'], -2)) ** (-0.5)) # N-Dimensional CFL Condition
-if dt > dt_CFL or dt < 0:
-    print("WARNING: Input timestep {:0.2e} is larger than allowed by CFL condition (or negative). Updating dt...".format(dt))
-    dt = dt_CFL
+dt_max = ((4/3) / D) * (np.sum(np.power(domain['h'], -2)) ** (-1)) # N-Dimensional CFL Condition
+if dt > dt_max or dt < 0:
+    print("WARNING: Input timestep {:0.2e} is larger than allowed by stability condition (or negative). Updating dt...".format(dt))
+    dt = dt_max
 
 print("Timestep: \t\t\t {:0.2e} seconds".format(dt))
 
@@ -84,13 +75,14 @@ u = [np.zeros(domain["shape"]),
      np.zeros(domain["shape"]),
      np.zeros(domain["shape"])] # Solution is a list of arrays
 
+x_init = math.floor(x_init/domain['h'][1])
+y_init = math.floor(y_init/domain['h'][0])
+u[0][y_init, x_init] = 1
+u[1][y_init, x_init] = 1
+
 # Construct stepping operator [M]
 laplacian = cd_1d_matrix_ND_v2(2, 0, domain) + cd_1d_matrix_ND_v2(2, 1, domain)
-M = 2*sparse.eye(domain['size']) + (c**2/n**2)*(dt**2) * laplacian
-
-# Calculate source information (Specific to simulation 1)
-source_node = np.round(source_position / domain['h']).astype('int64')
-print(source_node)
+M = 2 * dt * D * laplacian
 
 print("Domain: " + str(domain))
 print("Operator Size: {:d}, {:d}".format(np.shape(M)[0], np.shape(M)[1]))
@@ -101,22 +93,16 @@ np.set_printoptions(precision=1, suppress=True)
 print("------------------------")
 print("-- Running FDTD simulation...")
 
+milestones = np.arange(10) * math.ceil(Nt/10)
 for i in range(Nt):
+    if np.sum(i == milestones) != 0 and i > 0:
+        print("{:d}%".format(math.ceil(100*(i/Nt))))
     t = dt*i # The time (in seconds)
 
     # First, apply the stepping operator to the internal nodes
     u = [i.reshape([domain['size']], order="F") for i in u]
-    u[2] = M.dot(u[1]) - u[0] # Apply stepping operator
+    u[2] = M.dot(u[1]) + u[0] # Apply stepping operator
     u = [i.reshape(domain['shape'], order="F") for i in u]
-
-    # Apply the radiating boundary conditions for each boundary
-    u[2] = apply_radiating_BC(u[2], u[1], 0, 0, n / (c * dt), domain) # Left boundary
-    u[2] = apply_radiating_BC(u[2], u[1], 1, 0, n / (c * dt), domain) # Bottom boundary
-    u[2] = apply_radiating_BC(u[2], u[1], 1, 1, n / (c * dt), domain) # Top boundary
-    u[2] = apply_radiating_BC(u[2], u[1], 0, 1, n / (c * dt), domain)  # Right boundary
-
-    # Set the source nodes to the appropriate value
-    u[2][source_node[0], source_node[1]] = A*math.exp(-(((t-T0)/(w/2))**2))*math.sin(omega*t)
 
     # Update solution for the next timestep
     u[0] = np.copy(u[1])
@@ -125,16 +111,12 @@ for i in range(Nt):
 print("------------------------")
 print("-- Plotting Results...")
 
-X = np.arange(domain['shape'][0])*domain['h'][0]
-Y = np.arange(domain['shape'][1])*domain['h'][1]
+Y = np.arange(domain['shape'][0])*domain['h'][0]
+X = np.arange(domain['shape'][1])*domain['h'][1]
 
-print("Plotting cross section at x=0")
-fig = plt.figure()
-plt.plot(X, u[2][:, 0])
-plt.show()
+X, Y = np.meshgrid(X, Y)
 
 print("Plotting 2D Colormap...")
-X, Y = np.meshgrid(X, Y)
 fig = plt.figure()
 ax = plt.axes()
 ax.contourf(X, Y, u[2], 100)

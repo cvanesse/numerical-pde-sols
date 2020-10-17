@@ -127,7 +127,6 @@ def cd_1d_matrix_ND(n, dim, domain):
 
     return sparse.diags(mol, idx, shape=(N, N), format="csr") / math.pow(h, n)
 
-
 # Constructs an nth-order central-difference derivative operator matrix for a domain of arbitrary dimensionality
 def cd_1d_matrix_ND_v2(n, dim, domain):
     # n is the order of the derivative

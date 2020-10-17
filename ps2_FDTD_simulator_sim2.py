@@ -14,10 +14,9 @@ start_time = time.time()
 c = 2.997925e8
 
 # Physical variables
-
 n_bg = 1 # Refractive index of the domain
 n_barrier = 10 # Refractive index of the barrier
-x_barrier = [10e-6, 10.5e-6]
+x_barrier = [9.5e-6, 10e-6]
 slot_width = 5e-6
 
 # Spatial domain
@@ -41,6 +40,9 @@ omega = 2*math.pi*c/wl # Pulse frequency (in rads/s)
 A = 1 # Pulse amplitude
 source_x = [1e-6]
 source_y = [0.5e-6, 29e-6]
+
+# Screen settings
+x_screen = 20e-6
 
 ## CODE
 print("------------------------")
@@ -149,9 +151,20 @@ print("-- Plotting Results...")
 Y = np.arange(domain['shape'][0])*domain['h'][0]
 X = np.arange(domain['shape'][1])*domain['h'][1]
 
-X, Y = np.meshgrid(X, Y)
+print("Plotting cross-section at the screen vs. theoretical results...")
+beta = (math.pi*slot_width/wl)*np.sin(np.arctan((Y - 15e-6)/(x_screen - np.max(x_barrier))))
+I_fraunhofer = np.power(np.sin(beta)/beta, 2.0)
+x_screen = math.floor(x_screen/domain['h'][1])
+I = np.power(u[2][:, x_screen], 2)
+I_fraunhofer = I_fraunhofer * np.max(I)
+fig = plt.figure()
+plt.plot(Y, I, label="Numerical Results")
+plt.plot(Y, I_fraunhofer, label="Theoretical Results")
+plt.legend()
+plt.show()
 
 print("Plotting 2D Colormap...")
+X, Y = np.meshgrid(X, Y)
 fig = plt.figure()
 ax = plt.axes()
 ax.contourf(X, Y, u[2], 100)
