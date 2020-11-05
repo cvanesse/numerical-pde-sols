@@ -145,6 +145,8 @@ for i in range(Nt):
     u[0] = np.copy(u[1])
     u[1] = np.copy(u[2])
 
+print("Done! Runtime: {:.2f} seconds".format(time.time() - start_time))
+
 print("------------------------")
 print("-- Plotting Results...")
 
@@ -183,4 +185,3 @@ plt.ion()
 ax.view_init(50, -45)
 plt.show()
 
-print("Done! Runtime: {:.2f} seconds".format(time.time() - start_time))

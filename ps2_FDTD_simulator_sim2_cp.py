@@ -109,7 +109,7 @@ n = cp._cupyx.scipy.sparse.csr_matrix(n)
 laplacian = cd_1d_matrix_ND_v2(2, 0, domain) + cd_1d_matrix_ND_v2(2, 1, domain)
 
 M = 2*sparse.eye(domain['size'].item())
-M = M + c**2*dt**2 * n.dot(laplacian)
+M = M + c**2*dt**2 * n.dot(sparse.csc_matrix(laplacian))
 
 # Calculate source information (Specific to simulation 1)
 source_idx = cp.around(source_x / domain['h'][1].item()).astype('int64')
@@ -149,6 +149,8 @@ for i in range(Nt):
     # Update solution for the next timestep
     u[0] = np.copy(u[1])
     u[1] = np.copy(u[2])
+
+print("Done! Runtime: {:.2f} seconds".format(time.time() - start_time))
 
 print("------------------------")
 print("-- Plotting Results...")
@@ -190,4 +192,3 @@ plt.ion()
 ax.view_init(50, -45)
 plt.show()
 
-print("Done! Runtime: {:.2f} seconds".format(time.time() - start_time))
