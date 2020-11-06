@@ -18,23 +18,15 @@ Npts = np.shape(P)[0]
 Ntri = np.shape(T)[0]
 
 ## Simulation Parameters
+sim_name = "Open Top"
+use_top = False # Set to True to apply the no-slip condition at the top of the channel
+
 pz = 1 # Pressure gradient in z (transport) direction
 R  = 1 # Reynold's number
 
 # Initialize variables for the discrete equation
 L = sparse.lil_matrix((Npts, Npts))
 A = np.zeros((Npts, 1))
-
-def bot_bdry(x):
-    if (x > 5 or x < -5):
-        if (x < 0): x = x + 5
-        if (x > 0): x = x - 5
-        return -math.sqrt((11**2)-x**2)
-    else:
-        return -10
-
-def on_boundary(r, eps=1e-10):
-    return (r[1]==0 or math.abs(r[1]-bot_bdry(r[0])) < eps)
 
 ## Van's algorithm
 
@@ -55,7 +47,6 @@ def find_circumcenter(tri):
     den = 2*np.sum(np.power(drxdr, 2))
 
     return ri + (num/den)
-
 
 print("Constructing the Finite-Volume Operator...")
 milestones = np.arange(10) * math.ceil(Ntri/10)
@@ -99,21 +90,7 @@ print("Finite-volume operator constructed.")
 
 print("Finding boundary nodes and applying boundary conditions...")
 
-def bot_bdry(x):
-    if (x > 5 or x < -5):
-        if (x < 0): x = x + 5
-        if (x > 0): x = x - 5
-        return -math.sqrt(100-(x**2))
-    else:
-        return -10
-
-def dist(v1, v2):
-    dv = v1-v2
-    return math.sqrt(dv[0]**2 + dv[1]**2)
-
-def on_boundary(r, eps=1e-10):
-    return dist(r, [r[0], bot_bdry(r[0])]) <= eps or r[1] >= -eps
-
+# Removes a row from an LIL sparse matrix
 def rem_row(mat, i):
     if not isinstance(mat, sparse.lil_matrix):
         raise ValueError("works only for LIL format -- use .tolil() first")
@@ -121,6 +98,7 @@ def rem_row(mat, i):
     mat.data = np.delete(mat.data, i)
     mat._shape = (mat._shape[0] - 1, mat._shape[1])
 
+# Removes a column rom an LIL sparse matrix
 def rem_col(mat, j):
     if not isinstance(mat, sparse.lil_matrix):
         raise ValueError("works only for LIL format -- use .tolil() first")
@@ -146,12 +124,30 @@ def rem_col(mat, j):
 
     mat._shape = (mat._shape[0], mat._shape[1] - 1)
 
+# A parameteric function providing the y-values of the bottom of the channel for a given x
+def bot_bdry(x):
+    if (x > 5 or x < -5):
+        if (x < 0): x = x + 5
+        if (x > 0): x = x - 5
+        return -math.sqrt(100-(x**2))
+    else:
+        return -10
+
+# Calculates the euclidean distance between two vectors
+def dist(v1, v2):
+    dv = v1-v2
+    return math.sqrt(dv[0]**2 + dv[1]**2)
+
+# Returns 1 if a node is on the boundary of the channel, and 0 otherwise.
+def on_boundary(r, top, eps=1e-10):
+    return dist(r, [r[0], bot_bdry(r[0])]) <= eps  or (r[1] >= -eps and top)
+
+# Apply no-slip condition to the boundaries
 offset = 0
 bdry_nodes = list()
 for i in range(Npts):
-    if on_boundary(P[i, :], eps=1e-7):
+    if on_boundary(P[i, :], use_top, eps=1e-7):
         bdry_nodes.append(i)
-        #L[i, i] = 0
         if 1:
             rem_row(L, i-offset)
             rem_col(L, i-offset)
@@ -162,9 +158,10 @@ for i in range(Npts):
 print("Solving the discretized equation...")
 g = -R*pz*A
 
-L = sparse.csc_matrix(L)
-v = linalg.spsolve(L, g)
+L = sparse.csc_matrix(L) # Convert to CSC so we can solve the equation
+v = linalg.spsolve(L, g) # Solve the equation
 
+# Insert 0 for the velocity at the boundary nodes
 for i in bdry_nodes:
     if 1:
         if i < len(v):
@@ -173,11 +170,15 @@ for i in bdry_nodes:
             v = np.append(v, 0)
 
 print("Plotting the results...")
+
 triang = triangle_mod.Triangulation(P[:, 0], P[:, 1], triangles=T)
 
-fig1, ax1 = plt.subplots()
+fig1 = plt.figure(dpi=400)
+ax1 = fig1.subplots()
 ax1.set_aspect('equal')
 tpc = ax1.tripcolor(triang, v, shading='flat')
 fig1.colorbar(tpc)
-ax1.set_title('tripcolor of Delaunay triangulation, flat shading')
+ax1.set_title('Velocity [um/s] dist. in microfluidic channel - %s' % sim_name)
+ax1.set_xlabel("x [um]")
+ax1.set_ylabel("y [um]")
 plt.show()
