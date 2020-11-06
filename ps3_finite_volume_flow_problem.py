@@ -6,6 +6,7 @@ import math
 from scipy.sparse import linalg
 from matplotlib import pyplot as plt
 from matplotlib import tri as triangle_mod
+from bisect import bisect_left
 
 ## Load simulation grid from provided .mat file
 mesh_data = loadmat("data/channel_mesh.mat")
@@ -28,7 +29,7 @@ def bot_bdry(x):
     if (x > 5 or x < -5):
         if (x < 0): x = x + 5
         if (x > 0): x = x - 5
-        return -math.sqrt(100-x**2)
+        return -math.sqrt((11**2)-x**2)
     else:
         return -10
 
@@ -55,8 +56,6 @@ def find_circumcenter(tri):
 
     return ri + (num/den)
 
-# Loop through each triangle in the domain
-ide = [0, 1, 2]
 
 print("Constructing the Finite-Volume Operator...")
 milestones = np.arange(10) * math.ceil(Ntri/10)
@@ -70,32 +69,31 @@ for e in range(Ntri):
     # Calculate location of the circumcenter of this triangle
     rc = find_circumcenter(tri_nodes)[:2]
 
-    # Loop through each node in the triangle, adding the contribution to L and g
-    for qi in ide:
+    # Loop through each node in the triangle, adding the contribution to L and A
+    for qi in range(3):
         i = tri[qi]
-        Lii = L[i,i].toarray()[0]
-        nns = np.array([qj for qj in ide if qj != qi])
+        nns = np.array([qj for qj in range(3) if qj != qi])
 
+        rci = rc - tri_nodes[qi, :]
 
+        # Loop through each nearest neighbor node
         for qj in nns:
             j = tri[qj]
 
             # Compute wij, lij
             rji = tri_nodes[qj, :] - tri_nodes[qi, :]
-            rci = rc - tri_nodes[qi, :]
 
-            lij = np.sum(np.power(rji, 2))
-            wij = np.sum(np.power((rci-0.5*rji), 2))
-            phiij = wij/lij
+            lij = math.sqrt(np.sum(np.power(rji, 2)))
+            wije = math.sqrt(np.sum(np.power((rci-0.5*rji), 2)))
+            phiij = wije/lij
 
             # Update L
-            L[i, j] = phiij
-            Lii = Lii - phiij
+            L[i, j] = L[i, j].toarray()[0] + phiij
+            L[i, i] = L[i, i].toarray()[0] - phiij
 
             # Add contribution to Aie
-            A[i] = A[i] + 0.5*(lij*wij)
+            A[i] = A[i] + 0.5*(lij*wije)
 
-        L[i, i] = Lii
 
 print("Finite-volume operator constructed.")
 
@@ -105,16 +103,60 @@ def bot_bdry(x):
     if (x > 5 or x < -5):
         if (x < 0): x = x + 5
         if (x > 0): x = x - 5
-        return -math.sqrt(100-x**2)
+        return -math.sqrt(100-(x**2))
     else:
         return -10
 
-def on_boundary(r, eps=1e-10):
-    return r[1] >= -eps or abs(r[1]-bot_bdry(r[0])) <= eps
+def dist(v1, v2):
+    dv = v1-v2
+    return math.sqrt(dv[0]**2 + dv[1]**2)
 
+def on_boundary(r, eps=1e-10):
+    return dist(r, [r[0], bot_bdry(r[0])]) <= eps or r[1] >= -eps
+
+def rem_row(mat, i):
+    if not isinstance(mat, sparse.lil_matrix):
+        raise ValueError("works only for LIL format -- use .tolil() first")
+    mat.rows = np.delete(mat.rows, i)
+    mat.data = np.delete(mat.data, i)
+    mat._shape = (mat._shape[0] - 1, mat._shape[1])
+
+def rem_col(mat, j):
+    if not isinstance(mat, sparse.lil_matrix):
+        raise ValueError("works only for LIL format -- use .tolil() first")
+    if j < 0:
+        j += mat.shape[1]
+
+    if j < 0 or j >= mat.shape[1]:
+        raise IndexError('column index out of bounds')
+
+    rows = mat.rows
+    data = mat.data
+    for i in range(mat.shape[0]):
+        pos = bisect_left(rows[i], j)
+        if pos == len(rows[i]):
+            continue
+        elif rows[i][pos] == j:
+            rows[i].pop(pos)
+            data[i].pop(pos)
+            if pos == len(rows[i]):
+                continue
+        for pos2 in range(pos, len(rows[i])):
+            rows[i][pos2] -= 1
+
+    mat._shape = (mat._shape[0], mat._shape[1] - 1)
+
+offset = 0
+bdry_nodes = list()
 for i in range(Npts):
-    if on_boundary(P[i, :], eps=0):
-        L[:, i] = 0
+    if on_boundary(P[i, :], eps=1e-7):
+        bdry_nodes.append(i)
+        #L[i, i] = 0
+        if 1:
+            rem_row(L, i-offset)
+            rem_col(L, i-offset)
+            A = np.delete(A, i-offset)
+            offset = offset+1
 
 # Solve discrete equation
 print("Solving the discretized equation...")
@@ -123,6 +165,12 @@ g = -R*pz*A
 L = sparse.csc_matrix(L)
 v = linalg.spsolve(L, g)
 
+for i in bdry_nodes:
+    if 1:
+        if i < len(v):
+            v = np.insert(v, i, 0)
+        else:
+            v = np.append(v, 0)
 
 print("Plotting the results...")
 triang = triangle_mod.Triangulation(P[:, 0], P[:, 1], triangles=T)
@@ -133,7 +181,3 @@ tpc = ax1.tripcolor(triang, v, shading='flat')
 fig1.colorbar(tpc)
 ax1.set_title('tripcolor of Delaunay triangulation, flat shading')
 plt.show()
-
-# Display results
-
-

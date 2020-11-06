@@ -1,36 +1,21 @@
-from finite_difference_methods import *
-from matplotlib import pyplot as plt
+import numpy as np
 
-domain = {
-    "shape": [50,51],
-    "size": 50*51,
-    "h": [1, 1]
-}
+def find_circumcenter(tri):
+    zeros = np.zeros((3, 1))
+    tri = np.concatenate((tri, zeros), axis=1)
+    ri = tri[0, :]
 
-laplacian = cd_1d_matrix_ND_v2(2, 0, domain) + cd_1d_matrix_ND_v2(2, 1, domain)
+    dr = [tri[i+1, :]-ri for i in range(2)]
+    mdr2 = [np.sum(np.power(d, 2)) for d in dr]
 
-lamb, V = linalg.eigsh(laplacian, k=5, which="SM")
+    dmdr2dr = mdr2[1]*dr[0] - mdr2[0]*dr[1]
 
-V = V[:, 2].reshape(domain['shape'], order="F")
+    drxdr = np.cross(dr[1], dr[0])
 
-Y = np.arange(domain['shape'][0])*domain['h'][0]
-X = np.arange(domain['shape'][1])*domain['h'][1]
+    num = np.cross(dmdr2dr, drxdr)
+    den = 2*np.sum(np.power(drxdr, 2))
 
-X, Y = np.meshgrid(X, Y)
-fig = plt.figure()
-ax = plt.axes()
-ax.contourf(X, Y, V, 100)
-ax.set_xlabel('x')
-ax.set_ylabel('y')
-plt.show()
+    return ri + (num/den)
 
-#M = 2*sparse.eye(domain['size']) + 0.2 * laplacian
-
-#print(M.toarray())
-
-D2x = cd_1d_matrix_ND_v2(2, 0, domain)
-D2y = cd_1d_matrix_ND_v2(2, 1, domain)
-#D2z = cd_1d_matrix_ND_v2(2, 2, domain)
-#print(D2x.toarray())
-#print(D2y.toarray())
-#print((D2y + D2x).toarray())
+A = np.array([[0,0], [1.045, -2.4], [3.7, 1.6]])
+print(find_circumcenter(A))
