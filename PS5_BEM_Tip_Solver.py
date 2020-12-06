@@ -1,4 +1,5 @@
 # Uses the boundary-element method to solve for the charge density on a ti
+
 from scipy.io import loadmat
 import numpy as np
 from scipy import sparse
@@ -14,15 +15,36 @@ mesh_data = loadmat("data/P_array.mat")
 P = np.array(mesh_data['P']) # The node coordinates in the computational domain
 P = P*1e-6
 
+V_applied = -1e-3 # Applied voltage is -1kV
+
+dx = 0.05e-6
+dy = 0.025e-6
+
+#L = 2e-6
+#N = 21
+#x = np.linspace(0, L, N)
+#y = np.linspace(0, L, N)
+#P = np.zeros((N*N, 2))
+
+#start = 0
+#end = N
+#for xid in range(N):
+#    P[start:end, 0] = x[xid]
+#    P[start:end, 1] = y[:]
+
+#    start += N
+#    end += N
+
+#dx = L/N
+#dy = L/N
+#V_applied = 1
+
 T = Delaunay(P)
 
 # Physical constants
 eps_0 = 8.85419e-12
 pi = np.pi
 
-V_applied = -1e3 # Applied voltage is -1kV
-dx = 0.5e-6
-dy = 0.25e-6
 
 # Construct the BEM matrix
 # Kij = 1/(4*pi*eps_0) * 1/(Rij)
@@ -55,6 +77,7 @@ K = K / (4*pi*eps_0)
 b = np.ones(N)*V_applied
 
 # Solve the integral equation
+q = 1.602e-19
 rho = linalg.solve(K, b)
 
 #print(rho)
