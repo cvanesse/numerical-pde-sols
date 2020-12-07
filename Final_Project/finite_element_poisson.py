@@ -42,8 +42,49 @@ def apply_dirichlet_conditions(K, b, ids, ids_domain, vals):
     return K, b
 
 
+# Applies RBCs for a single edge of a single triangle
+def apply_RBC_to_triangle(K, P, rc, i, j, eps_p):
+    # K is the global stiffness matrix
+    # b is the global forcing function
+    # P is the list of points in the domain
+    # rc is the location of the circumcenter
+    # k is the index of the internal node
+    # i is the index of the first (ordered CCW) boundary node
+    # j is the index of the second (ordered CCW) boundary node
+    # eps_p is the list of relative permittivities for all nodes in the domain.
+
+    ri = P[i]  # First boundary node
+    rj = P[j]  # Second boundary node
+
+    eps_b = 0.5 * (eps_p[i] + eps_p[j])  # Relative permittivity of the boundary
+
+    # Calculate geometric quantities for RBC application
+    rb = 0.5 * (rj + ri)  # Radial vector pointing to the boundary
+    mrb = np.linalg.norm(rb)
+    urb = rb / np.linalg.norm(rb)  # Unit radial vector of the boundary
+
+    n = 0.5*(rj-ri) - (rc-ri)
+    un = n / np.linalg.norm(n) # Unit normal vector
+
+    urbn = np.dot(urb, un)  # urb dot un [Normal component of urb]
+    urbt = np.linalg.norm(urb - urbn * un)  # urb dot ut [Tangential component of urb]
+
+    l = np.linalg.norm(ri - rj)  # Length of the boundary
+
+    aburbn = eps_b / urbn
+    lb6rblnrb = l / (6 * mrb * math.log(mrb))
+
+    dKp = aburbn * (lb6rblnrb + urbt / 2)
+    dKm = aburbn * (lb6rblnrb - urbt / 2)
+
+    K[i, j] += dKp
+    K[j, j] += dKp
+    K[j, i] += dKm
+    K[i, i] += dKm
+
+
 # Applies radiating boundary conditions for finite-element poisson
-def apply_RBCs(K, b, P, T, C, ids, eps_p):
+def apply_RBCs(K, b, P, T, C, ids, ids_corner, eps_p):
     # K is the original stiffness matrix
     # b is the original forcing function
     # P is the set of points in the domain
@@ -53,6 +94,7 @@ def apply_RBCs(K, b, P, T, C, ids, eps_p):
     # eps_p is the list of permittivities evaluated at each vertex
 
     N_e = np.shape(T)[0]
+    ids_all = np.hstack((ids, ids_corner))
 
     # Loop through each triangle, check if the triangle is "on the boundary"
     #   If it is, perturb the stiffness matrix according to the RBCs.
@@ -60,50 +102,41 @@ def apply_RBCs(K, b, P, T, C, ids, eps_p):
         pts = T[e, :] # Global indices of the points.
 
         # Check which points (if any) are on the boundary
-        bpts = []
-        opts = []
+        bpts = [] # For edge and corner points
+        opts = [] # For internal points
         for p in pts:
-            if p in ids:
+            if p in ids_all:
                 bpts.append(p) # bpts will be in CCW order.
             else:
                 opts.append(p)
 
         # Go to the next triangle if this one isn't on the boundary
-        on_bdry = len(bpts) > 1 and len(opts) == 1
+        on_bdry = len(bpts) > 1
         if not on_bdry:
             continue
 
-        # At this point, we know we're on the boundary
-        #   bpts contains the (sorted) list of boundary points
-        #   opts contains the remaining internal node.
-        i = bpts[0];  j = bpts[1]
-        rk = P[opts[0]] # Internal node
-        ri = P[i] # First boundary node
-        rj = P[j] # Second boundary node
+        # There are two possibilities (for a rectangle):
+        #   either we have an internal point or a corner point
+        if len(opts) == 1:
+            # Two nodes are on the boundary, one internal point
+            i = bpts[0]; j = bpts[1]
+            #k = opts[0] but we don't care.
 
-        eps_b = 0.5*(eps_p[bpts[0]] + eps_p[bpts[1]]) # Relative permittivity of the boundary
+            apply_RBC_to_triangle(K, P, C[e], i, j, eps_p)
+        else:
+            # We have one corner point
+            edges = [] # List of list for storing the local indices of edges in the correct order (CCW)
+            for p in range(len(bpts)): # Find local index of the corner point
+                if bpts[p] in ids_corner:
+                    pn = (p+1)%3 # The next local node index (in CCW order)
+                    p2n = (p+2)%3 # The next next local node index (in CCW order0
+                    edges.append([bpts[p], bpts[pn]]) # Add the edge CCW to the corner
+                    edges.append([bpts[p2n], bpts[p]]) # Add the edge CW to the corner (in the correct order)
+                    break
 
-        # Calculate geometric quantities for RBC application
-        rb = 0.5*(rj+ri) # Radial vector pointing to the boundary
-        mrb = np.linalg.norm(rb)
-        urb = rb / np.linalg.norm(rb) # Unit radial vector of the boundary
-        un = (C[e]-rk)/np.linalg.norm(C[e]-rk) # Unit normal vector
-
-        urbn = np.dot(urb, un) # urb dot un [Normal component of urb]
-        urbt = np.linalg.norm(urb-urbn*un) # urb dot ut [Tangential component of urb]
-
-        l = np.linalg.norm(ri - rj)  # Length of the boundary
-
-        aburbn = eps_b / urbn
-        lb6rblnrb = l/(6*mrb*math.log(mrb))
-
-        dKp = aburbn * (lb6rblnrb + urbt/2)
-        dKm = aburbn * (lb6rblnrb - urbt/2)
-
-        K[i, j] += dKp
-        K[j, j] += dKp
-        K[j, i] += dKm
-        K[i, i] += dKm
+            # Apply the RBCs for both edges
+            for edge in edges:
+                apply_RBC_to_triangle(K, P, C[e], edge[0], edge[1], eps_p)
 
     return K, b
 

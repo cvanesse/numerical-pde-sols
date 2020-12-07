@@ -38,6 +38,7 @@ eps_select = 1e-5 # The minimum distance from the boundary for a point to be con
 # Calculate the indices of different sections of the domain
 #   (For easier indexing/application of BCs)
 n_bdry = []
+n_corn = []
 n_cent = []
 n_r1   = []
 n_r2   = []
@@ -48,11 +49,16 @@ for i in range(N):
     elif ri[0] in p_r2[:, 0] and ri[1] in p_r2[:, 1]:
         n_r2.append(i)
     else:
-        lb = abs(ri[0] - x_min) < eps_select
-        rb = abs(ri[0] - x_max) < eps_select
-        bb = abs(ri[1] - y_min) < eps_select
-        tb = abs(ri[1] - y_max) < eps_select
-        if lb or rb or tb or bb:
+        lb = int(abs(ri[0] - x_min) < eps_select)
+        rb = int(abs(ri[0] - x_max) < eps_select)
+        bb = int(abs(ri[1] - y_min) < eps_select)
+        tb = int(abs(ri[1] - y_max) < eps_select)
+
+        num_boundaries = sum([lb, rb, bb, tb])
+
+        if num_boundaries > 1:
+            n_corn.append(i)
+        elif num_boundaries:
             n_bdry.append(i)
         else:
             n_cent.append(i)
@@ -77,7 +83,7 @@ if show_mesh_plots:
 #   Fourth set of nodes are internal nodes
 
 # Create the new point order and invert the mapping
-new_point_order = np.hstack((n_bdry, n_r1, n_r2, n_cent))
+new_point_order = np.hstack((n_corn, n_bdry, n_r1, n_r2, n_cent))
 invmap = np.zeros_like(new_point_order)
 for j in range(N): invmap[new_point_order[j]] = j
 
@@ -95,6 +101,7 @@ if show_mesh_plots:
     plt.show()
 
 # Update with the new point ordering
+n_corn = invmap[n_corn]
 n_bdry = invmap[n_bdry]
 n_r1 = invmap[n_r1]
 n_r2 = invmap[n_r2]
@@ -150,7 +157,7 @@ if show_sparsity:
 
 # Apply the radiating boundary conditions at boundary nodes
 print("Applying Radiating Boundary Conditions...")
-K, b = apply_RBCs(K, b, P, T, C, n_bdry, eps_p)
+K, b = apply_RBCs(K, b, P, T, C, n_bdry, n_corn, eps_p)
 
 print("Solving the Matrix Equation...")
 K = K.tocsr()
