@@ -167,7 +167,7 @@ V = linalg.spsolve(K, b)
 print("Plotting the potential distribution...")
 triang_out = triangle_mod.Triangulation(P[:, 0], P[:, 1], triangles=T)
 
-fig1, ax1 = plt.subplots(dpi=100)
+fig1, ax1 = plt.subplots(dpi=400)
 ax1.set_aspect('equal')
 tpc = ax1.tripcolor(triang_out, V, shading='gouraud')
 fig1.colorbar(tpc)
@@ -240,7 +240,7 @@ cm = cm.get_cmap("turbo")
 sm = plt.cm.ScalarMappable(cmap=cm, norm=norm)
 sm.set_array([])
 
-fig1, ax1 = plt.subplots(dpi=600)
+fig1, ax1 = plt.subplots(dpi=400)
 ax1.set_aspect('equal')
 quiv_scale = np.max(E)*75
 plt.quiver(C[:, 0], C[:, 1], E[:, 0], E[:, 1], color=cm(magE), scale=quiv_scale, headwidth=2, headlength=3)

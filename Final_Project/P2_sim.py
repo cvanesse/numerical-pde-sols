@@ -197,7 +197,7 @@ V = linalg.spsolve(K, b)
 print("Plotting the potential distribution...")
 triang_out = triangle_mod.Triangulation(P[:, 0], P[:, 1], triangles=T)
 
-fig1, ax1 = plt.subplots(dpi=600)
+fig1, ax1 = plt.subplots(dpi=400)
 ax1.set_aspect('equal')
 tpc = ax1.tripcolor(triang_out, V, shading='gouraud')
 fig1.colorbar(tpc)
@@ -206,6 +206,79 @@ plt.show()
 
 # Calculate and plot the electric field
 E = -FE_gradient(V, P, T)
+
+# Calculate the force on the cell
+theta = [] # For plotting E vs. theta
+E_ccl = []
+F_ccl = []
+F = np.zeros((2))
+# Calculate the capacitance by integrating the normal electric field around the small rod
+T_maxwell = np.zeros((2, 2))
+for e in range(N_e):
+    pts = T[e, :]
+
+    # Check which points (if any) are on the cell
+    bpts = []  # For edge and corner points
+    opts = []  # For internal points
+    for p in pts:
+        if p in n_cell:
+            bpts.append(p)  # bpts will be in CCW order.
+        else:
+            opts.append(p)
+
+    # Go to the next triangle if this one isn't on the cell boundary
+    on_bdry = len(bpts) > 1 and len(opts) == 1
+    if not on_bdry:
+        continue
+
+    # Calculate the normal vector
+    rc = C[e]
+    ri = P[bpts[0]]
+    rj = P[bpts[1]]
+    n = (rc-ri) - 0.5*(ri-rj)
+    un = n / np.linalg.norm(n) # Unit normal vector pointing into the triangle
+
+    theta.append(0.5*(np.arccos(un[1]) + np.arcsin(un[0])))
+    E_ccl.append(E[e, :])
+
+    T_maxwell[0, 0] = 0.5 * (E[e, 0] ** 2 - E[e, 0] ** 2)
+    T_maxwell[0, 1] = E[e, 0]*E[e, 1]
+    T_maxwell[1, 0] = E[e, 0]*E[e, 1]
+    T_maxwell[1, 1] = -T[0, 0]
+
+    F_ccl.append(T_maxwell.dot(un))
+
+    l = np.linalg.norm(ri - rj)  # Length of the boundary
+    F = F+l*F_ccl[-1]
+
+print("----------------------------------------------")
+
+# Finally, multiply by epsilon to get charge
+print("Force on the cell: (%0.2e, %0.2e) Newtons" % (F[0], F[1]))
+
+theta = np.array(theta)
+sortmap = np.argsort(theta)
+E_ccl = np.array(E_ccl)
+F_ccl = np.array(F_ccl)
+
+theta = theta[sortmap]
+E_ccl = E_ccl[sortmap, :]
+F_ccl = F_ccl[sortmap, :]
+
+# Plot the electric field components vs. theta
+plt.subplots(dpi=400)
+plt.plot(theta, E_ccl[:, 0], label="Ex")
+plt.plot(theta, E_ccl[:, 1], label="Ey")
+plt.title("Electric field [V/um] components versus angle")
+plt.legend()
+plt.show()
+
+plt.subplots(dpi=400)
+plt.plot(theta, F_ccl[:, 0], label="Fx")
+plt.plot(theta, F_ccl[:, 1], label="Fy")
+plt.title("Force density [N/um] components versus angle")
+plt.legend()
+plt.show()
 
 # Normalize E for scaling
 magE = np.linalg.norm(E, axis=1)
@@ -226,7 +299,7 @@ cm = cm.get_cmap("turbo")
 sm = plt.cm.ScalarMappable(cmap=cm, norm=norm)
 sm.set_array([])
 
-fig1, ax1 = plt.subplots(dpi=600)
+fig1, ax1 = plt.subplots(dpi=400)
 ax1.set_aspect('equal')
 quiv_scale = np.max(E)*75
 plt.quiver(C[:, 0], C[:, 1], E[:, 0], E[:, 1], color=cm(magE), scale=quiv_scale, headwidth=2, headlength=3)
