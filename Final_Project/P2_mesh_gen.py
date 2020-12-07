@@ -73,6 +73,6 @@ plt.show()
 # Save the mesh for use later
 from os import path
 np.savez(path.join(path.dirname(__file__), "meshes/P2_mesh"),
-         P=p,
+         P=p, T=t, P_sep=p_sep,
          P_e1=p_e1, P_e2=p_e2,
-         P_r1=p_r1)
+         P_c=p_r1)

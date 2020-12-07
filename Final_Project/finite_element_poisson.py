@@ -141,14 +141,6 @@ def apply_RBCs(K, b, P, T, C, ids, ids_corner, eps_p):
     return K, b
 
 
-# Applies cauchy conditions to the finite-element equation
-#   h is a function multiplying the zeroth order term at the boundary
-#   Q is a constant forcing function on the RHS of the equation
-def apply_cauchy_conditions(K, b, P, T, ids, h, Q):
-    # TODO: Implement Cauchy Conditions
-    return K, b
-
-
 # Computes the coefficients of the lagrange basis functions
 def compute_lagrange_coeff(pts):
     idx = np.array([[1, 2], [2, 0], [0, 1]])

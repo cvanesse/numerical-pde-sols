@@ -1,15 +1,16 @@
-# Runs the simulation for problem 1
-import numpy as np
+# Runs the poisson equation calculation for Problem 2
+
 from os import path
 from finite_element_poisson import *
 from matplotlib import pyplot as plt
 from matplotlib import tri as triangle_mod
 
-## Physical information
-eps_0 = 8.854187e-12 * 1e3 # Freespace permittivity in mm
-eps_r = 1
-V_r1 = 1
-V_r2 = -1
+## Physical Information
+eps_0 = 8.854187e-12 * 1e6 # Freespace permittivity in um
+eps_r_water = 80
+eps_r_cell = 50
+V_elec1 = 10
+V_elec2 = -10
 
 ## Script config
 show_mesh_plots = True
@@ -18,36 +19,40 @@ show_sparsity = True
 curdir = path.dirname(__file__)
 
 # Load the mesh and triangulation data
-meshdata = np.load(path.join(curdir, "meshes/P1_mesh.npz"))
+meshdata = np.load(path.join(curdir, "meshes/P2_mesh.npz"))
 
-# Load all of the mesh information
+# Extract all of the mesh information from the file
 P = meshdata["P"]
 N = np.shape(P)[0]
 T = meshdata["T"]
 N_e = np.shape(T)[0]
-p_fs = meshdata["P_sep"]
-p_r1 = meshdata["P_r1"]
-p_r2 = meshdata["P_r2"]
+P_w = meshdata["P_sep"] # Points in water
+P_e1 = meshdata["P_e1"] # Points in the first electrode
+P_e2 = meshdata["P_e2"] # Points in the second electrode
+P_c =  meshdata["P_c"]  # Points in the cell
 
+
+# Separate the point indices into regions
 x_min = np.min(P[:, 0])
 x_max = np.max(P[:, 0])
 y_min = np.min(P[:, 1])
 y_max = np.max(P[:, 1])
-eps_select = 1e-5 # The minimum distance from the boundary for a point to be considered a boundary node.
+eps_select = 1e-5
 
-# Calculate the indices of different sections of the domain
-#   (For easier indexing/application of BCs)
 n_bdry = []
 n_corn = []
-n_cent = []
-n_r1   = []
-n_r2   = []
+n_water = []
+n_e1 = []
+n_e2 = []
+n_cell = []
 for i in range(N):
     ri = P[i, :]
-    if ri[0] in p_r1[:, 0] and ri[1] in p_r1[:, 1]:
-        n_r1.append(i)
-    elif ri[0] in p_r2[:, 0] and ri[1] in p_r2[:, 1]:
-        n_r2.append(i)
+    if ri[0] in P_e1[:, 0] and ri[1] in P_e1[:, 1]:
+        n_e1.append(i)
+    elif ri[0] in P_e2[:, 0] and ri[1] in P_e2[:, 1]:
+        n_e2.append(i)
+    elif ri[0] in P_c[:, 0] and ri[1] in P_c[:, 1]:
+        n_cell.append(i)
     else:
         lb = int(abs(ri[0] - x_min) < eps_select)
         rb = int(abs(ri[0] - x_max) < eps_select)
@@ -61,29 +66,27 @@ for i in range(N):
         elif num_boundaries:
             n_bdry.append(i)
         else:
-            n_cent.append(i)
+            n_water.append(i)
 
 n_bdry = np.array(n_bdry)
-n_cent = np.array(n_cent)
-n_r1 = np.array(n_r1)
-n_r2 = np.array(n_r2)
+n_corn = np.array(n_corn)
+n_water = np.array(n_water)
+n_e1 = np.array(n_e1)
+n_e2 = np.array(n_e2)
+n_cell = np.array(n_cell)
 
 if show_mesh_plots:
     plt.scatter(P[n_bdry, 0], P[n_bdry, 1], s=5, color="red", marker=".", label="Boundary")
-    plt.scatter(P[n_r1, 0], P[n_r1, 1], s=5, color="red", marker=".", label="Rod 1")
-    plt.scatter(P[n_r2, 0], P[n_r2, 1], s=5, color="red", marker=".", label="Rod 2")
-    plt.scatter(P[n_cent, 0], P[n_cent, 1], s=5, color="black", marker=".", label="Internal")
+    plt.scatter(P[n_e1, 0], P[n_e1, 1], s=5, color="black", marker=".", label="Electrode 1")
+    plt.scatter(P[n_e2, 0], P[n_e2, 1], s=5, color="grey", marker=".", label="Electrode 2")
+    plt.scatter(P[n_cell, 0], P[n_cell, 1], s=5, color="green", marker=".", label="Cell")
+    plt.scatter(P[n_water, 0], P[n_water, 1], s=5, color="blue", marker=".", label="Water")
     plt.title("Identified Regions")
+    plt.legend()
     plt.show()
 
-# Remap the domain for simpler indexing of points
-#   First nodes are boundary nodes
-#   Second set of nodes are R1 nodes
-#   Third set of nodes are R2 nodes
-#   Fourth set of nodes are internal nodes
-
-# Create the new point order and invert the mapping
-new_point_order = np.hstack((n_corn, n_bdry, n_r1, n_r2, n_cent))
+# Reorder the indices for clearer ordering
+new_point_order = np.hstack((n_corn, n_bdry, n_e1, n_e2, n_cell, n_water))
 invmap = np.zeros_like(new_point_order)
 for j in range(N): invmap[new_point_order[j]] = j
 
@@ -103,9 +106,10 @@ if show_mesh_plots:
 # Update with the new point ordering
 n_corn = invmap[n_corn]
 n_bdry = invmap[n_bdry]
-n_r1 = invmap[n_r1]
-n_r2 = invmap[n_r2]
-n_cent = invmap[n_cent]
+n_e1 = invmap[n_e1]
+n_e2 = invmap[n_e2]
+n_cell = invmap[n_cell]
+n_water = invmap[n_water]
 P = P_new
 T = T_new
 
@@ -120,8 +124,34 @@ if show_mesh_plots:
 ## At this point, the entire domain has been sorted for simpler indexing, and all circumcenters are calculated
 
 # Calculate the stiffness matrix
-eps_e = eps_r*eps_0*np.ones((N_e)) # The permittivity at the center of each triangle
-eps_p = eps_r*eps_0*np.ones((N))   # The permittivity at each point
+
+# Set the relative permittivity for each point and triangle according to it's location
+eps_p = np.ones((N))
+eps_e = np.ones((N_e))
+
+eps_p[n_water] *= eps_r_water
+eps_p[n_bdry] *= eps_r_water
+eps_p[n_corn] *= eps_r_water
+eps_p[n_cell] *= eps_r_cell # We don't need to worry about electrodes since those end up being overridden with dirichlet
+
+# Set triangle refractive indices according to *priority*
+#   (We assume that any triangle containing a single water point is entirely within the water)
+water_nodes = np.hstack((n_corn, n_bdry, n_water, n_e1, n_e2))
+for e in range(N_e):
+    set=False
+    for p in T[e, :]:
+        if p in water_nodes:
+            eps_e[e] *= eps_r_water
+            set=True
+            break
+    if not set:
+        eps_e[e] *= eps_r_cell
+
+# Plot the refractive index for each circumcenter
+if show_mesh_plots:
+    plt.scatter(C[:, 0], C[:, 1], s=5, c=eps_e, marker=".", label="Circumcenters")
+    plt.title("Refractive indices at circumcenters")
+    plt.show()
 
 print("Constructing Stiffness Matrix...")
 K, b = construct_poisson_eq(P, T, eps_e, eps_p)
@@ -144,11 +174,11 @@ if show_sparsity:
 
 # Apply the dirichlet conditions (rod voltages) to the FE equation
 print("Applying Dirichlet Conditions...")
-V_rods = np.zeros(np.size(n_r1) + np.size(n_r2))
-V_rods[:np.size(n_r1)]  = V_r1
-V_rods[-np.size(n_r2):] = V_r2
-n_rods = np.hstack((n_r1, n_r2))
-K, b = apply_dirichlet_conditions(K, b, n_rods, n_cent, V_rods)
+V_elecs = np.zeros(np.size(n_e1) + np.size(n_e2))
+V_elecs[:np.size(n_e1)]  = V_elec1
+V_elecs[-np.size(n_e2):] = V_elec2
+n_rods = np.hstack((n_e1, n_e2))
+K, b = apply_dirichlet_conditions(K, b, n_rods, water_nodes, V_elecs)
 
 if show_sparsity:
     plt.spy(K, markersize=0.5)
