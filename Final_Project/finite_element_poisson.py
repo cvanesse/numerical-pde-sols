@@ -61,7 +61,7 @@ def FE_gradient(F, P, T):
         ab = compute_lagrange_coeff(pts)
         uq = np.transpose(np.vstack((F[T[e, :]], F[T[e, :]])))
 
-        grad[e, :] = np.sum(ab*uq, axis=0) / (2*A)
+        grad[e, :] = np.sum(ab*uq, axis=0) / (A)
 
     return grad
 

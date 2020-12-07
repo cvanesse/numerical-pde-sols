@@ -174,10 +174,54 @@ fig1.colorbar(tpc)
 ax1.set_title('Potential distribution')
 plt.show()
 
-# Calculate and plot the electric field
+# Calculate the electric field
 E = -FE_gradient(V, P, T)
 
-# Normalize E for scaling
+# Calculate the capacitance by integrating the normal electric field around the small rod
+Q = 0
+for e in range(N_e):
+    pts = T[e, :]
+
+    # Check which points (if any) are on the small wire
+    bpts = []  # For edge and corner points
+    opts = []  # For internal points
+    for p in pts:
+        if p in n_r2:
+            bpts.append(p)  # bpts will be in CCW order.
+        else:
+            opts.append(p)
+
+    # Go to the next triangle if this one isn't on the boundary
+    on_bdry = len(bpts) > 1 and len(opts) == 1
+    if not on_bdry:
+        continue
+
+    # Calculate the normal vector
+    rc = C[e]
+    ri = P[bpts[0]]
+    rj = P[bpts[1]]
+    n = (rc-ri) - 0.5*(ri-rj)
+    un = n / np.linalg.norm(n) # Unit normal vector pointing into the triangle
+
+    l = np.linalg.norm(ri - rj)  # Length of the boundary
+
+    En = np.dot(E[e, :], un)
+
+    Q += En*l
+
+print("----------------------------------------------")
+
+# Finally, multiply by epsilon to get charge
+Q = eps_0*1e-3*Q
+
+print("Charge on small rod: %0.2e Coulombs" % Q)
+print("Voltage on small rod: %0.2e Volts" % V_r2)
+print("Capacitance (Numerical Result): %0.2e Farads" % (Q/V_r2))
+
+C_analytic = 2*np.pi*(eps_0*1e-3)/math.log((0.35**2)/(0.1*0.05))
+print("Capacitance (Analytic Result): %0.2e Farads" % C_analytic)
+
+# Plot Electric field
 magE = np.linalg.norm(E, axis=1)
 eps_plot = 1e-10
 nonzeroE = np.where(magE > eps_plot)
