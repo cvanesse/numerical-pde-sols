@@ -3,9 +3,11 @@ import distmesh as dm
 import numpy as np
 from matplotlib import pyplot as plt
 
+mesh_name = "P2_mesh_extremely_fine_uniform"
+
 # Problem 2 Mesh Generation
-h0_rect = 0.2
-h0_cell = h0_rect * (5/8)
+h0_rect = 0.05
+h0_cell = h0_rect#* (5/8)
 h0_elec = h0_cell
 xi = -5; xf = 5
 yi = 0; yf = 6
@@ -72,7 +74,7 @@ plt.show()
 
 # Save the mesh for use later
 from os import path
-np.savez(path.join(path.dirname(__file__), "meshes/P2_mesh"),
+np.savez(path.join(path.dirname(__file__), "meshes/"+ mesh_name),
          P=p, T=t, P_sep=p_sep,
          P_e1=p_e1, P_e2=p_e2,
          P_c=p_r1)

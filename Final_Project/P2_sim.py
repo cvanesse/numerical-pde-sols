@@ -14,13 +14,14 @@ V_elec1 = 10
 V_elec2 = -10
 
 ## Script config
+mesh_name = "P2_mesh_uniform"
 show_mesh_plots = False
 show_sparsity = False
 
 curdir = path.dirname(__file__)
 
 # Load the mesh and triangulation data
-meshdata = np.load(path.join(curdir, "meshes/P2_mesh.npz"))
+meshdata = np.load(path.join(curdir, "meshes/" + mesh_name + ".npz"))
 
 # Extract all of the mesh information from the file
 P = meshdata["P"]
@@ -211,6 +212,7 @@ E = -FE_gradient(V, P, T)
 theta = [] # For plotting E vs. theta
 E_ccl = []
 F_ccl = []
+P_ccl = []
 F = np.zeros((2))
 # Calculate the capacitance by integrating the normal electric field around the small rod
 T_maxwell = np.zeros((2, 2))
@@ -238,13 +240,35 @@ for e in range(N_e):
     n = (rc-ri) - 0.5*(ri-rj)
     un = n / np.linalg.norm(n) # Unit normal vector pointing into the triangle
 
-    theta.append(0.5*(np.arccos(un[1]) + np.arcsin(un[0])))
+    theta_x = np.arcsin(un[0])
+    theta_y = np.arccos(un[1])
+
+    if (theta_y < np.pi/2):
+        # Top half of the circle
+        if (theta_x > 0):
+            # Right top
+            theta.append(0.5*(theta_x+theta_y))
+        else:
+            # Left top
+            theta.append(0.5*((2*np.pi + theta_x) + (2*np.pi - theta_y)))
+    else:
+        # Bottom half of the circle
+        if (theta_x > 0):
+            # Right bot
+            theta.append(0.5 * ((np.pi - theta_x) + theta_y))
+        else:
+            # Left bot
+            theta.append(0.5 * ((np.pi - theta_x) + (2*np.pi - theta_y)))
+
+    #theta.append(0.5*(np.arccos(un[1]) + np.arcsin(un[0])))
     E_ccl.append(E[e, :])
+    P_ccl.append(C[e, :])
 
     T_maxwell[0, 0] = 0.5 * (E[e, 0] ** 2 - E[e, 0] ** 2)
     T_maxwell[0, 1] = E[e, 0]*E[e, 1]
     T_maxwell[1, 0] = E[e, 0]*E[e, 1]
     T_maxwell[1, 1] = -T[0, 0]
+    T_maxwell = T_maxwell * eps_r_water*eps_0
 
     F_ccl.append(T_maxwell.dot(un))
 
@@ -260,10 +284,20 @@ theta = np.array(theta)
 sortmap = np.argsort(theta)
 E_ccl = np.array(E_ccl)
 F_ccl = np.array(F_ccl)
+P_ccl = np.array(P_ccl)
 
 theta = theta[sortmap]
 E_ccl = E_ccl[sortmap, :]
 F_ccl = F_ccl[sortmap, :]
+P_ccl = P_ccl[sortmap, :]
+
+# Plot the global position components vs. theta
+plt.subplots(dpi=400)
+plt.plot(theta, P_ccl[:, 0], label="x")
+plt.plot(theta, P_ccl[:, 1], label="y")
+plt.title("Global coordinates components versus angle")
+plt.legend()
+plt.show()
 
 # Plot the electric field components vs. theta
 plt.subplots(dpi=400)
@@ -273,10 +307,15 @@ plt.title("Electric field [V/um] components versus angle")
 plt.legend()
 plt.show()
 
+# Plot the force components vs. theta
 plt.subplots(dpi=400)
 plt.plot(theta, F_ccl[:, 0], label="Fx")
+plt.title("Force density in x [N/um] components versus angle")
+plt.legend()
+plt.show()
+plt.subplots(dpi=400)
 plt.plot(theta, F_ccl[:, 1], label="Fy")
-plt.title("Force density [N/um] components versus angle")
+plt.title("Force density in y [N/um] components versus angle")
 plt.legend()
 plt.show()
 
