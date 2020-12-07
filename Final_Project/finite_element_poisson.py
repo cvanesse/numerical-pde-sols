@@ -42,6 +42,80 @@ def apply_dirichlet_conditions(K, b, ids, ids_domain, vals):
     return K, b
 
 
+# Applies radiating boundary conditions for finite-element poisson
+def apply_RBCs(K, b, P, T, C, ids, eps_p):
+    # K is the original stiffness matrix
+    # b is the original forcing function
+    # P is the set of points in the domain
+    # T is the list of simplexes
+    # C is the list of circumcenters corresponding to each simplex
+    # ids is the list of node IDs on the boundary for which RBCs should be applied
+    # eps_p is the list of permittivities evaluated at each vertex
+
+    N_e = np.shape(T)[0]
+
+    # Loop through each triangle, check if the triangle is "on the boundary"
+    #   If it is, perturb the stiffness matrix according to the RBCs.
+    for e in range(N_e):
+        pts = T[e, :] # Global indices of the points.
+
+        # Check which points (if any) are on the boundary
+        bpts = []
+        opts = []
+        for p in pts:
+            if p in ids:
+                bpts.append(p) # bpts will be in CCW order.
+            else:
+                opts.append(p)
+
+        # Go to the next triangle if this one isn't on the boundary
+        on_bdry = len(bpts) > 1 and len(opts) == 1
+        if not on_bdry:
+            continue
+
+        # At this point, we know we're on the boundary
+        #   bpts contains the (sorted) list of boundary points
+        #   opts contains the remaining internal node.
+        i = bpts[0];  j = bpts[1]
+        rk = P[opts[0]] # Internal node
+        ri = P[i] # First boundary node
+        rj = P[j] # Second boundary node
+
+        eps_b = 0.5*(eps_p[bpts[0]] + eps_p[bpts[1]]) # Relative permittivity of the boundary
+
+        # Calculate geometric quantities for RBC application
+        rb = 0.5*(rj+ri) # Radial vector pointing to the boundary
+        mrb = np.linalg.norm(rb)
+        urb = rb / np.linalg.norm(rb) # Unit radial vector of the boundary
+        un = (C[e]-rk)/np.linalg.norm(C[e]-rk) # Unit normal vector
+
+        urbn = np.dot(urb, un) # urb dot un [Normal component of urb]
+        urbt = np.linalg.norm(urb-urbn*un) # urb dot ut [Tangential component of urb]
+
+        l = np.linalg.norm(ri - rj)  # Length of the boundary
+
+        aburbn = eps_b / urbn
+        lb6rblnrb = l/(6*mrb*math.log(mrb))
+
+        dKp = aburbn * (lb6rblnrb + urbt/2)
+        dKm = aburbn * (lb6rblnrb - urbt/2)
+
+        K[i, j] += dKp
+        K[j, j] += dKp
+        K[j, i] += dKm
+        K[i, i] += dKm
+
+    return K, b
+
+
+# Applies cauchy conditions to the finite-element equation
+#   h is a function multiplying the zeroth order term at the boundary
+#   Q is a constant forcing function on the RHS of the equation
+def apply_cauchy_conditions(K, b, P, T, ids, h, Q):
+    # TODO: Implement Cauchy Conditions
+    return K, b
+
+
 # Computes the coefficients of the lagrange basis functions
 def compute_lagrange_coeff(pts):
     idx = np.array([[1, 2], [2, 0], [0, 1]])

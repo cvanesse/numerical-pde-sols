@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from matplotlib import tri as triangle_mod
 
 ## Physical information
-eps_0 = 8.854187e-12
+eps_0 = 8.854187e-12 * 1e3 # Freespace permittivity in mm
 eps_r = 1
 V_r1 = 1
 V_r2 = -1
@@ -120,13 +120,15 @@ print("Constructing Stiffness Matrix...")
 K, b = construct_poisson_eq(P, T, eps_e, eps_p)
 
 # Verify validity of the matrix
-valid = True
-eps_test = 1e-30
+max_sum = 0
 for i in range(N):
-    valid = valid and np.abs(np.sum(K[i, :])) < eps_test
+    max_sum = max([max_sum, np.abs(np.sum(K[i, :]))])
 
+eps_test = 1e-25
+valid = max_sum <= eps_test
 if not valid:
     print("ERROR: Invalid Stiffness Matrix - Sum of rows are not all 0.")
+    print("Maximum Row sum is: %0.2e" % max_sum)
 
 if show_sparsity:
     plt.spy(K, markersize=0.5)
@@ -134,23 +136,23 @@ if show_sparsity:
     plt.show()
 
 # Apply the dirichlet conditions (rod voltages) to the FE equation
+print("Applying Dirichlet Conditions...")
 V_rods = np.zeros(np.size(n_r1) + np.size(n_r2))
 V_rods[:np.size(n_r1)]  = V_r1
 V_rods[-np.size(n_r2):] = V_r2
 n_rods = np.hstack((n_r1, n_r2))
-n_rest = np.hstack((n_cent, n_bdry))
-K, b = apply_dirichlet_conditions(K, b, np.hstack((n_r1, n_r2)), n_rest, V_rods)
-
-#print(extract_submatrix(K, n_rods, n_rods))
-#print(K[n_rods, n_rods])
-#print(extract_submatrix(K, n_rods, n_rest))
-#print(extract_submatrix(K, n_rest, n_rods))
+K, b = apply_dirichlet_conditions(K, b, n_rods, n_cent, V_rods)
 
 if show_sparsity:
     plt.spy(K, markersize=0.5)
-    plt.title("Sparsity of Final Stiffness Matrix")
+    plt.title("Sparsity of Stiffness Matrix with Dirichlet Conditions")
     plt.show()
 
+# Apply the radiating boundary conditions at boundary nodes
+print("Applying Radiating Boundary Conditions...")
+K, b = apply_RBCs(K, b, P, T, C, n_bdry, eps_p)
+
+print("Solving the Matrix Equation...")
 K = K.tocsr()
 V = linalg.spsolve(K, b)
 
