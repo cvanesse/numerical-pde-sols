@@ -4,6 +4,7 @@ from os import path
 from finite_element_poisson import *
 from matplotlib import pyplot as plt
 from matplotlib import tri as triangle_mod
+from matplotlib import cm, colors
 
 ## Physical information
 eps_0 = 8.854187e-12 * 1e3 # Freespace permittivity in mm
@@ -12,8 +13,8 @@ V_r1 = 1
 V_r2 = -1
 
 ## Script config
-show_mesh_plots = True
-show_sparsity = True
+show_mesh_plots = False
+show_sparsity = False
 
 curdir = path.dirname(__file__)
 
@@ -166,9 +167,40 @@ V = linalg.spsolve(K, b)
 print("Plotting the potential distribution...")
 triang_out = triangle_mod.Triangulation(P[:, 0], P[:, 1], triangles=T)
 
-fig1, ax1 = plt.subplots()
+fig1, ax1 = plt.subplots(dpi=100)
 ax1.set_aspect('equal')
-tpc = ax1.tripcolor(triang_out, V, shading='flat')
+tpc = ax1.tripcolor(triang_out, V, shading='gouraud')
 fig1.colorbar(tpc)
 ax1.set_title('Potential distribution')
+plt.show()
+
+# Calculate and plot the electric field
+E = -FE_gradient(V, P, T)
+
+# Normalize E for scaling
+magE = np.linalg.norm(E, axis=1)
+eps_plot = 1e-10
+nonzeroE = np.where(magE > eps_plot)
+zeroE = np.where(magE <= eps_plot)
+E[nonzeroE, 0] = E[nonzeroE, 0] / magE[nonzeroE]
+E[nonzeroE, 1] = E[nonzeroE, 1] / magE[nonzeroE]
+
+magE[nonzeroE] = np.log10(magE[nonzeroE])
+magE[np.where(magE<0)] = 0
+magE[zeroE] = 0
+
+norm = colors.Normalize()
+norm.autoscale(magE)
+cm = cm.get_cmap("turbo")
+
+sm = plt.cm.ScalarMappable(cmap=cm, norm=norm)
+sm.set_array([])
+
+fig1, ax1 = plt.subplots(dpi=600)
+ax1.set_aspect('equal')
+quiv_scale = np.max(E)*75
+plt.quiver(C[:, 0], C[:, 1], E[:, 0], E[:, 1], color=cm(magE), scale=quiv_scale, headwidth=2, headlength=3)
+ax1.set_title('Electric Field Lines')
+cb = fig1.colorbar(sm)
+cb.ax.set_ylabel("log(|E [V/mm]|), saturated at 0", rotation=90)
 plt.show()

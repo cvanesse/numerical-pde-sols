@@ -42,6 +42,31 @@ def apply_dirichlet_conditions(K, b, ids, ids_domain, vals):
     return K, b
 
 
+# Applies the 2D gradient of a function using linear lagrange basis function
+def FE_gradient(F, P, T):
+    # F is the function for which the gradient should be taken
+    # P is the list of points in the domain
+    # T is the list of triangles in the domain
+    # returns grad: the gradient of F at the circumcenter
+
+    Ne = np.shape(T)[0]
+    grad = np.zeros((Ne, 2))
+
+    for e in range(Ne):
+        pts = P[T[e, :], :]
+
+        A = np.ones((3, 3)); A[:, 1:] = pts
+        A = 0.5 * np.linalg.det(A)  # The area of this triangle
+
+        ab = compute_lagrange_coeff(pts)
+        uq = np.transpose(np.vstack((F[T[e, :]], F[T[e, :]])))
+
+        grad[e, :] = np.sum(ab*uq, axis=0) / (2*A)
+
+    return grad
+
+
+
 # Applies RBCs for a single edge of a single triangle
 def apply_RBC_to_triangle(K, P, rc, i, j, eps_p):
     # K is the global stiffness matrix
