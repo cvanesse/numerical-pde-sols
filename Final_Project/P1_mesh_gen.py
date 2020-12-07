@@ -50,9 +50,9 @@ p_sep = np.zeros((N-N_r1-N_r2, 2))
 i_sep = 0
 for i in range(N):
     point = p[i, :]
-    if point[0] in p_r1[:, 0] or point[1] in p_r1[:, 1]:
+    if point[0] in p_r1[:, 0] and point[1] in p_r1[:, 1]:
         continue
-    elif point[0] in p_r2[:, 0] or point[1] in p_r2[:, 1]:
+    elif point[0] in p_r2[:, 0] and point[1] in p_r2[:, 1]:
         continue
     else:
         p_sep[i_sep, :] = point
@@ -66,6 +66,7 @@ plt.show()
 from os import path
 np.savez(path.join(path.dirname(__file__), "meshes/P1_mesh"),
          P=p,
+         T=t,
          P_sep=p_sep,
          P_r1=p_r1,
          P_r2=p_r2)
