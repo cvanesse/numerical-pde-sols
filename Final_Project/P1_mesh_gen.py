@@ -20,7 +20,7 @@ rod_dist = 0.35
 fd_rod1 = lambda p: dm.dcircle(p, -rod_dist/2, 0, 0.1)
 p_r1, t_r1 = dm.distmesh2d(fd_rod1, dm.huniform, h0_rod1, bbox, pfix=None)
 
-plt.scatter(p_r1[:, 0], p_r1[:, 1], s=5,color="black", marker=".")
+plt.scatter(p_r1[:, 0], p_r1[:, 1], s=5, color="black", marker=".")
 plt.title("Rod1 mesh - Problem #1")
 plt.show()
 
