@@ -7,9 +7,11 @@ from matplotlib import tri as triangle_mod
 from matplotlib import cm, colors
 from scipy.spatial import Delaunay
 
+#mesh_name = "P1_very_fine_mesh_uniform"
 #mesh_name = "P1_fine_mesh_uniform"
 #mesh_name = "P1_mesh"
-#mesh_name = "PP_fine"
+#mesh_name = "P1_fine_mesh_nonuniform"
+mesh_name = "PP_fine"
 #mesh_name = "PP_coarse"
 #mesh_name = "PP_very_fine"
 
@@ -24,7 +26,7 @@ show_mesh_plots = False
 show_sparsity = False
 E_quiver = True
 calc_distance = False
-use_RBCs = False
+use_RBCs = True
 
 curdir = path.dirname(__file__)
 
@@ -175,6 +177,8 @@ if show_sparsity:
 if use_RBCs:
     print("Applying Radiating Boundary Conditions...")
     K, b = apply_RBCs(K, b, P, T, C, n_bdry, n_corn, eps_p)
+elif use_RBCs is None:
+    print("Leaving boundaries as homogenous neumann conditions...")
 else:
     print("Applying Dirichlet (V=0) at Domain Boundary")
     V_bdry = np.zeros(np.size(n_bdry))

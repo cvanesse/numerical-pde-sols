@@ -108,7 +108,7 @@ def FE_gradient(F, P, T):
 
 
 # Applies RBCs for a single edge of a single triangle
-def apply_RBC_to_triangle(K, P, rc, i, j, eps_p):
+def apply_RBC_to_triangle(K, P, rc, i, j, eps_p, verbose=False):
     # K is the global stiffness matrix
     # b is the global forcing function
     # P is the list of points in the domain
@@ -133,23 +133,35 @@ def apply_RBC_to_triangle(K, P, rc, i, j, eps_p):
 
     n = 0.5*rji - rci
     un = n / np.linalg.norm(n) # Unit normal vector
-    ut = rji / np.linalg.norm(rji) # Unit tangential vector
+    #ut = rji / np.linalg.norm(rji) # Unit tangential vector
+    ut = np.array([-un[1], un[0]])
+
+    if verbose:
+        print("------")
+        print("rb: [%0.2f, %0.2f]" % (rb[0], rb[1]))
+        print("un: [%0.2f, %0.2f]" % (un[0], un[1]))
+        print("ut: [%0.2f, %0.2f]" % (ut[0], ut[1]))
 
     urbn = np.dot(urb, un)  # Normal component of urb
     urbt = np.dot(urb, ut)  # Tangential comonent of urb
 
+    if verbose:
+        print("urbn: %0.2f" % urbn)
+        print("urbt: %0.2f" % urbt)
+
     l = np.linalg.norm(rji)  # Length of the boundary
+
+    if verbose:
+        print("l: %0.2e" % l)
+        print("mrb: %0.2e" % mrb)
 
     aburbn = eps_b / urbn
     lb6rblnrb = l / (6 * mrb * math.log(mrb))
 
-    dKm = aburbn * (lb6rblnrb - urbt / 2)
-    dKp = aburbn * (lb6rblnrb + urbt / 2)
-
-    K[j, i] += dKp
-    K[i, i] += dKp
-    K[i, j] += dKm
-    K[j, j] += dKm
+    K[j, i] += aburbn * (lb6rblnrb + urbt / 2)
+    K[i, i] += aburbn * (2*lb6rblnrb + urbt / 2)
+    K[i, j] += aburbn * (lb6rblnrb - urbt / 2)
+    K[j, j] += aburbn * (2*lb6rblnrb - urbt / 2)
 
 
 # Applies radiating boundary conditions for finite-element poisson
@@ -163,7 +175,7 @@ def apply_RBCs(K, b, P, T, C, ids, ids_corner, eps_p):
     # eps_p is the list of permittivities evaluated at each vertex
 
     N_e = np.shape(T)[0]
-    ids_all = np.hstack((ids, ids_corner))
+    ids_all = np.hstack((ids_corner, ids))
 
     # Loop through each triangle, check if the triangle is "on the boundary"
     #   If it is, perturb the stiffness matrix according to the RBCs.
@@ -174,13 +186,15 @@ def apply_RBCs(K, b, P, T, C, ids, ids_corner, eps_p):
         bpts = [] # For edge and corner points
         opts = [] # For internal points
         for p in pts:
-            if p in ids_all:
+            if p in ids_corner:
+                bpts.append(p)  # bpts will be in CCW order.
+            elif p in ids_all:
                 bpts.append(p) # bpts will be in CCW order.
             else:
                 opts.append(p)
 
         # Go to the next triangle if this one isn't on the boundary
-        on_bdry = len(bpts) > 1
+        on_bdry = len(bpts) > 1 and len(opts) == 1
         if not on_bdry:
             continue
 
@@ -196,9 +210,15 @@ def apply_RBCs(K, b, P, T, C, ids, ids_corner, eps_p):
             # We have one corner point
             edges = [] # List of list for storing the local indices of edges in the correct order (CCW)
             for p in range(len(bpts)): # Find local index of the corner point
+                #print(P[bpts[p]])
                 if bpts[p] in ids_corner:
+                    #print("Found")
+                    #print(P[bpts[p]])
                     pn = (p+1)%3 # The next local node index (in CCW order)
-                    p2n = (p+2)%3 # The next next local node index (in CCW order0
+                    p2n = (p+2)%3 # The next next local node index (in CCW order)
+                    #print(p)
+                    #print(pn)
+                    #print(p2n)
                     edges.append([bpts[p], bpts[pn]]) # Add the edge CCW to the corner
                     edges.append([bpts[p2n], bpts[p]]) # Add the edge CW to the corner (in the correct order)
                     break
@@ -243,7 +263,7 @@ def compute_local_eq(pts, eps_e, eps_p):
         for q in range(3):
             aq = ab[q, 0]
             bq = ab[q, 1]
-            Ke[p, q] = -(ap*aq + bp*bq) * eps_o_fA
+            Ke[p, q] = (ap*aq + bp*bq) * eps_o_fA # TODO: Find the missing negative
 
     return Ke, be
 
