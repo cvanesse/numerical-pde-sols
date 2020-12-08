@@ -20,7 +20,7 @@ def fd(p):
                     dm.dcircle(p, 0, 0, 0.5))
 
 def fh(p):
-    return 0.05+0.3*dm.dcircle(p, 0, 0, 0.5)
+    return 0.01+0.3*dm.dcircle(p, 0, 0, 0.5)
 
 p, t = dm.distmesh2d(fd, fh, 0.05, [-1, -1, 1, 1],
                      [(-1, -1), (-1, 1), (1, -1), (1, 1)])
