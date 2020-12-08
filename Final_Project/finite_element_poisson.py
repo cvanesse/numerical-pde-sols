@@ -55,16 +55,14 @@ def FE_gradient(F, P, T):
     for e in range(Ne):
         pts = P[T[e, :], :]
 
-        A = np.ones((3, 3)); A[:, 1:] = pts
-        A = 0.5 * np.linalg.det(A)  # The area of this triangle
+        A = calc_area(pts)
 
         ab = compute_lagrange_coeff(pts)
         uq = np.transpose(np.vstack((F[T[e, :]], F[T[e, :]])))
 
-        grad[e, :] = np.sum(ab*uq, axis=0) / (A)
+        grad[e, :] = np.sum(ab*uq, axis=0) / (2*A)
 
     return grad
-
 
 
 # Applies RBCs for a single edge of a single triangle
@@ -84,28 +82,32 @@ def apply_RBC_to_triangle(K, P, rc, i, j, eps_p):
     eps_b = 0.5 * (eps_p[i] + eps_p[j])  # Relative permittivity of the boundary
 
     # Calculate geometric quantities for RBC application
-    rb = 0.5 * (rj + ri)  # Radial vector pointing to the boundary
+    rb = 0.5 * (rj + ri)  # Radial vector pointing from 0 to the boundary
     mrb = np.linalg.norm(rb)
     urb = rb / np.linalg.norm(rb)  # Unit radial vector of the boundary
 
-    n = 0.5*(rj-ri) - (rc-ri)
+    rji = (rj - ri)
+    rci = (rc - ri)
+
+    n = 0.5*rji - rci
     un = n / np.linalg.norm(n) # Unit normal vector
+    ut = rji / np.linalg.norm(rji) # Unit tangential vector
 
-    urbn = np.dot(urb, un)  # urb dot un [Normal component of urb]
-    urbt = np.linalg.norm(urb - urbn * un)  # urb dot ut [Tangential component of urb]
+    urbn = np.dot(urb, un)  # Normal component of urb
+    urbt = np.dot(urb, ut)  # Tangential comonent of urb
 
-    l = np.linalg.norm(ri - rj)  # Length of the boundary
+    l = np.linalg.norm(rji)  # Length of the boundary
 
     aburbn = eps_b / urbn
     lb6rblnrb = l / (6 * mrb * math.log(mrb))
 
-    dKp = aburbn * (lb6rblnrb + urbt / 2)
     dKm = aburbn * (lb6rblnrb - urbt / 2)
+    dKp = aburbn * (lb6rblnrb + urbt / 2)
 
-    K[i, j] += dKp
-    K[j, j] += dKp
-    K[j, i] += dKm
-    K[i, i] += dKm
+    K[j, i] += dKp
+    K[i, i] += dKp
+    K[i, j] += dKm
+    K[j, j] += dKm
 
 
 # Applies radiating boundary conditions for finite-element poisson
@@ -186,9 +188,8 @@ def compute_local_eq(pts, eps_e, eps_p):
 
     # Explicitly calculate coefficients for
 
-    A = np.ones((3, 3)); A[:, 1:] = pts
-    A = 0.5*np.linalg.det(A) # The area of this triangle
-    eps_o_fA = eps_e / 4*(A)
+    A = calc_area(pts)
+    eps_o_fA = eps_e / (4*A)
 
     ab = compute_lagrange_coeff(pts)
 
@@ -239,6 +240,12 @@ def construct_poisson_eq(P, T, eps_e, eps_p):
 def dist(v1, v2):
     dv = v1-v2
     return math.sqrt(dv[0]**2 + dv[1]**2)
+
+
+def calc_area(pts):
+    A = np.ones((3, 3)); A[:, 1:] = pts
+    A = np.linalg.det(A)*0.5 # The area of this triangle
+    return A
 
 
 # Finds the circumcenter of the triangle defined by coordinates of the rows of the triangle

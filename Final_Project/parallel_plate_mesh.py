@@ -3,33 +3,26 @@ import distmesh as dm
 import numpy as np
 from matplotlib import pyplot as plt
 
-mesh_name = "P1_fine_mesh_uniform"
+mesh_name = "PP_very_fine"
 
 # Problem 1 Mesh Generation
-h0_rod1 = 0.020
-h0_rod2 = 0.020
-h0_rect = 0.025
+h0_P1 = 0.0125
+h0_P2 = 0.0125
+h0_rect = 0.0125
 xi = -1.5; xf = 1.5
 yi = -1.0; yf = 1.0
 x_range = [xi, xf]
 y_range = [yi, yf]
 bbox = [xi-0.1, yi-0.1, xf+0.1, yf+0.1]
 
-# Mesh inside the first circle
-rod_dist = 0.35
-fd_rod1 = lambda p: dm.dcircle(p, -rod_dist/2, 0, 0.1)
-p_r1, t_r1 = dm.distmesh2d(fd_rod1, dm.huniform, h0_rod1, bbox, pfix=None)
+# Mesh inside the first plate
+x_rod1 = np.linspace(-1, 1, int(2/h0_P1))
+p_r1 = np.zeros((len(x_rod1), 2))
+p_r1[:, 0] = x_rod1
+p_r1[:, 1] = 0.1
 
-plt.scatter(p_r1[:, 0], p_r1[:, 1], s=5,color="black", marker=".")
-plt.title("Rod1 mesh - Problem #1")
-plt.show()
-
-fd_rod2 = lambda p: dm.dcircle(p, rod_dist/2, 0, 0.05)
-p_r2, t_r2 = dm.distmesh2d(fd_rod2, dm.huniform, h0_rod2, bbox, pfix=None)
-
-plt.scatter(p_r2[:, 0], p_r2[:, 1], s=5, color="black", marker=".")
-plt.title("Rod2 mesh - Problem #1")
-plt.show()
+p_r2 = p_r1.copy()
+p_r2[:, 1] = -0.1
 
 fd_rect = lambda p: dm.drectangle0(p, xi, xf, yi, yf)
 
@@ -39,7 +32,7 @@ p, t = dm.distmesh2d(fd_rect, dm.huniform, h0_rect, bbox, pfix=pfix)
 
 plt.scatter(p[:, 0], p[:, 1], s=10, color="black", marker=".", label="Meshed")
 plt.scatter(pfix[:, 0], pfix[:, 1], s=10, color="red", marker=".", label="Fixed")
-plt.title("Full mesh - Problem #1")
+plt.title("Full mesh - Parallel Plates")
 plt.legend()
 plt.show()
 

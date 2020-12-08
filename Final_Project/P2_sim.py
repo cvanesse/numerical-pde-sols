@@ -14,7 +14,10 @@ V_elec1 = 10
 V_elec2 = -10
 
 ## Script config
-mesh_name = "P2_mesh_uniform"
+#mesh_name = "P2_mesh_extremely_fine_uniform"
+#mesh_name = "P2_mesh_very_fine_uniform"
+#mesh_name = "P2_mesh_fine_uniform"
+#mesh_name = "P2_mesh_uniform"
 show_mesh_plots = False
 show_sparsity = False
 
@@ -32,7 +35,6 @@ P_w = meshdata["P_sep"] # Points in water
 P_e1 = meshdata["P_e1"] # Points in the first electrode
 P_e2 = meshdata["P_e2"] # Points in the second electrode
 P_c =  meshdata["P_c"]  # Points in the cell
-
 
 # Separate the point indices into regions
 x_min = np.min(P[:, 0])
@@ -58,10 +60,10 @@ for i in range(N):
     else:
         lb = int(abs(ri[0] - x_min) < eps_select)
         rb = int(abs(ri[0] - x_max) < eps_select)
-        bb = int(abs(ri[1] - y_min) < eps_select)
+        #bb = int(abs(ri[1] - y_min) < eps_select)
         tb = int(abs(ri[1] - y_max) < eps_select)
 
-        num_boundaries = sum([lb, rb, bb, tb])
+        num_boundaries = sum([lb, rb, tb])
 
         if num_boundaries > 1:
             n_corn.append(i)
@@ -260,7 +262,6 @@ for e in range(N_e):
             # Left bot
             theta.append(0.5 * ((np.pi - theta_x) + (2*np.pi - theta_y)))
 
-    #theta.append(0.5*(np.arccos(un[1]) + np.arcsin(un[0])))
     E_ccl.append(E[e, :])
     P_ccl.append(C[e, :])
 

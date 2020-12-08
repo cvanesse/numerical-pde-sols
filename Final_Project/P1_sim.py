@@ -6,6 +6,11 @@ from matplotlib import pyplot as plt
 from matplotlib import tri as triangle_mod
 from matplotlib import cm, colors
 
+#mesh_name = "P1_fine_mesh_uniform"
+#mesh_name = "P1_mesh"
+mesh_name = "PP_fine"
+#mesh_name = "PP_coarse"
+
 ## Physical information
 eps_0 = 8.854187e-12 * 1e3 # Freespace permittivity in mm
 eps_r = 1
@@ -19,7 +24,7 @@ show_sparsity = False
 curdir = path.dirname(__file__)
 
 # Load the mesh and triangulation data
-meshdata = np.load(path.join(curdir, "meshes/P1_mesh.npz"))
+meshdata = np.load(path.join(curdir, "meshes/"+ mesh_name +".npz"))
 
 # Load all of the mesh information
 P = meshdata["P"]
@@ -175,10 +180,11 @@ ax1.set_title('Potential distribution')
 plt.show()
 
 # Calculate the electric field
-E = -FE_gradient(V, P, T)
+E = -FE_gradient(V, P, T) /2#/1.5
 
 # Calculate the capacitance by integrating the normal electric field around the small rod
 Q = 0
+L = 0
 for e in range(N_e):
     pts = T[e, :]
 
@@ -207,6 +213,7 @@ for e in range(N_e):
 
     En = np.dot(E[e, :], un)
 
+    L += l
     Q += En*l
 
 print("----------------------------------------------")
@@ -216,7 +223,8 @@ Q = eps_0*1e-3*Q
 
 print("Charge on small rod: %0.2e Coulombs" % Q)
 print("Voltage on small rod: %0.2e Volts" % V_r2)
-print("Capacitance (Numerical Result): %0.2e Farads" % (Q/V_r2))
+print("Length of integral: %0.2e mm" % L)
+print("Capacitance (Numerical Result): %0.2e Farads" % (4*Q/(V_r2)))
 
 C_analytic = 2*np.pi*(eps_0*1e-3)/math.log((0.35**2)/(0.1*0.05))
 print("Capacitance (Analytic Result): %0.2e Farads" % C_analytic)
