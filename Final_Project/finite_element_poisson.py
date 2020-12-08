@@ -3,6 +3,7 @@ import numpy as np
 from scipy import sparse
 from scipy.sparse import linalg
 import math
+from scipy.spatial.distance import cdist
 
 
 def extract_submatrix(M, i_vals, j_vals):
@@ -23,6 +24,47 @@ def set_submatrix(M, Mp, i_vals, j_vals):
     for i in range(len(i_vals)):
         M[i_vals[i], j_vals] = Mp[i, :]
     return M
+
+
+def calculate_characteristic_distance(P, num_per_calc=500, verbose=False):
+    N_p = np.shape(P)[0]
+    num_calcs = int(np.ceil(N_p/num_per_calc))
+
+    NN_dist = np.zeros((N_p, 1))
+
+    oDist = np.ones((num_per_calc, 1))
+
+    maxVal = np.linalg.norm(np.max(P, axis=0))
+
+    if verbose:
+        milestones = np.arange(10) * math.ceil(num_calcs / 10)
+
+    for oi in range(num_calcs):
+        if verbose:
+            if np.sum(oi == milestones) != 0 and oi > 0:
+                print("{:d}%".format(math.floor(100 * (oi / num_calcs))))
+
+        o_ids = [oi * num_per_calc, (oi + 1) * num_per_calc]
+        oP = P[o_ids[0]:o_ids[1], :]
+
+        oDist = oDist*maxVal
+
+        i_num = int(np.shape(oP)[0])
+        oDist = oDist[0:i_num]
+        for ii in range(num_calcs):
+            i_ids = [ii * i_num, (ii + 1) * i_num]
+            iP = P[i_ids[0]:i_ids[1], :]
+
+            tmp = cdist(oP, iP)
+
+            tmp[np.where(tmp==0)] = maxVal
+            tmp = np.hstack((oDist, tmp))
+            oDist = np.min(tmp, axis=1, keepdims=True)
+
+        NN_dist[o_ids[0]:o_ids[1], :] = oDist
+
+    # Return the mean nearest-neighbor distance
+    return np.mean(NN_dist)
 
 
 def apply_dirichlet_conditions(K, b, ids, ids_domain, vals):

@@ -17,7 +17,7 @@ V_elec2 = -10
 #mesh_name = "P2_mesh_extremely_fine_uniform"
 #mesh_name = "P2_mesh_very_fine_uniform"
 #mesh_name = "P2_mesh_fine_uniform"
-#mesh_name = "P2_mesh_uniform"
+mesh_name = "P2_mesh_uniform"
 show_mesh_plots = False
 show_sparsity = False
 
@@ -60,7 +60,7 @@ for i in range(N):
     else:
         lb = int(abs(ri[0] - x_min) < eps_select)
         rb = int(abs(ri[0] - x_max) < eps_select)
-        #bb = int(abs(ri[1] - y_min) < eps_select)
+        #bb = int(abs(ri[1] - y_min) < eps_select) # We leave the bottom boundary as neumann
         tb = int(abs(ri[1] - y_max) < eps_select)
 
         num_boundaries = sum([lb, rb, tb])

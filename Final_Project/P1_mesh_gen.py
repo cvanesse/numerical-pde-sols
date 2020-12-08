@@ -3,12 +3,12 @@ import distmesh as dm
 import numpy as np
 from matplotlib import pyplot as plt
 
-mesh_name = "P1_fine_mesh_uniform"
+mesh_name = "P1_very_fine_mesh_uniform"
 
 # Problem 1 Mesh Generation
-h0_rod1 = 0.020
-h0_rod2 = 0.020
-h0_rect = 0.025
+h0_rod1 = 0.010
+h0_rod2 = 0.010
+h0_rect = 0.015
 xi = -1.5; xf = 1.5
 yi = -1.0; yf = 1.0
 x_range = [xi, xf]

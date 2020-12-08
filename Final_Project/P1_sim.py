@@ -5,11 +5,13 @@ from finite_element_poisson import *
 from matplotlib import pyplot as plt
 from matplotlib import tri as triangle_mod
 from matplotlib import cm, colors
+from scipy.spatial import Delaunay
 
 #mesh_name = "P1_fine_mesh_uniform"
 #mesh_name = "P1_mesh"
-mesh_name = "PP_fine"
+#mesh_name = "PP_fine"
 #mesh_name = "PP_coarse"
+#mesh_name = "PP_very_fine"
 
 ## Physical information
 eps_0 = 8.854187e-12 * 1e3 # Freespace permittivity in mm
@@ -20,6 +22,9 @@ V_r2 = -1
 ## Script config
 show_mesh_plots = False
 show_sparsity = False
+E_quiver = True
+calc_distance = False
+use_RBCs = False
 
 curdir = path.dirname(__file__)
 
@@ -34,6 +39,11 @@ N_e = np.shape(T)[0]
 p_fs = meshdata["P_sep"]
 p_r1 = meshdata["P_r1"]
 p_r2 = meshdata["P_r2"]
+
+if (calc_distance):
+    print("Calculating mean NN distance of the mesh...")
+    mean_point_distance = calculate_characteristic_distance(P, num_per_calc=15000, verbose=False)
+    print("Mean Point Distance: %0.4e" % mean_point_distance)
 
 x_min = np.min(P[:, 0])
 x_max = np.max(P[:, 0])
@@ -162,8 +172,13 @@ if show_sparsity:
     plt.show()
 
 # Apply the radiating boundary conditions at boundary nodes
-print("Applying Radiating Boundary Conditions...")
-K, b = apply_RBCs(K, b, P, T, C, n_bdry, n_corn, eps_p)
+if use_RBCs:
+    print("Applying Radiating Boundary Conditions...")
+    K, b = apply_RBCs(K, b, P, T, C, n_bdry, n_corn, eps_p)
+else:
+    print("Applying Dirichlet (V=0) at Domain Boundary")
+    V_bdry = np.zeros(np.size(n_bdry))
+    K, b = apply_dirichlet_conditions(K, b, n_bdry, n_cent, V_bdry)
 
 print("Solving the Matrix Equation...")
 K = K.tocsr()
@@ -174,13 +189,13 @@ triang_out = triangle_mod.Triangulation(P[:, 0], P[:, 1], triangles=T)
 
 fig1, ax1 = plt.subplots(dpi=400)
 ax1.set_aspect('equal')
-tpc = ax1.tripcolor(triang_out, V, shading='gouraud')
+tpc = ax1.tripcolor(triang_out, V, cmap="turbo", shading='gouraud')
 fig1.colorbar(tpc)
 ax1.set_title('Potential distribution')
 plt.show()
 
 # Calculate the electric field
-E = -FE_gradient(V, P, T) /2#/1.5
+E = -FE_gradient(V, P, T) #/2#/1.5
 
 # Calculate the capacitance by integrating the normal electric field around the small rod
 Q = 0
@@ -224,35 +239,50 @@ Q = eps_0*1e-3*Q
 print("Charge on small rod: %0.2e Coulombs" % Q)
 print("Voltage on small rod: %0.2e Volts" % V_r2)
 print("Length of integral: %0.2e mm" % L)
-print("Capacitance (Numerical Result): %0.2e Farads" % (4*Q/(V_r2)))
+print("Capacitance (Numerical Result): %0.2e Farads" % (Q/(V_r2)))
 
 C_analytic = 2*np.pi*(eps_0*1e-3)/math.log((0.35**2)/(0.1*0.05))
 print("Capacitance (Analytic Result): %0.2e Farads" % C_analytic)
 
 # Plot Electric field
 magE = np.linalg.norm(E, axis=1)
-eps_plot = 1e-10
-nonzeroE = np.where(magE > eps_plot)
-zeroE = np.where(magE <= eps_plot)
-E[nonzeroE, 0] = E[nonzeroE, 0] / magE[nonzeroE]
-E[nonzeroE, 1] = E[nonzeroE, 1] / magE[nonzeroE]
 
-magE[nonzeroE] = np.log10(magE[nonzeroE])
-magE[np.where(magE<0)] = 0
-magE[zeroE] = 0
+if not E_quiver:
+    T_centers = Delaunay(C)
+    triang_E = triangle_mod.Triangulation(C[:, 0], C[:, 1], triangles=T_centers.simplices)
 
-norm = colors.Normalize()
-norm.autoscale(magE)
-cm = cm.get_cmap("turbo")
+    fig1, ax1 = plt.subplots(dpi=400)
+    ax1.set_aspect('equal')
+    tpc = ax1.tripcolor(triang_E, magE, cmap="turbo", shading='gouraud')
+    fig1.colorbar(tpc)
+    if (calc_distance):
+        ax1.set_title('Electric Field Magnitude \n Mean Point Distance %0.4e mm' % mean_point_distance)
+    else:
+        ax1.set_title('Electric Field Magnitude')
+    plt.show()
+else:
+    eps_plot = 1e-10
+    nonzeroE = np.where(magE > eps_plot)
+    zeroE = np.where(magE <= eps_plot)
+    E[nonzeroE, 0] = E[nonzeroE, 0] / magE[nonzeroE]
+    E[nonzeroE, 1] = E[nonzeroE, 1] / magE[nonzeroE]
 
-sm = plt.cm.ScalarMappable(cmap=cm, norm=norm)
-sm.set_array([])
+    magE[nonzeroE] = np.log10(magE[nonzeroE])
+    magE[np.where(magE<0)] = 0
+    magE[zeroE] = 0
 
-fig1, ax1 = plt.subplots(dpi=400)
-ax1.set_aspect('equal')
-quiv_scale = np.max(E)*75
-plt.quiver(C[:, 0], C[:, 1], E[:, 0], E[:, 1], color=cm(magE), scale=quiv_scale, headwidth=2, headlength=3)
-ax1.set_title('Electric Field Lines')
-cb = fig1.colorbar(sm)
-cb.ax.set_ylabel("log(|E [V/mm]|), saturated at 0", rotation=90)
-plt.show()
+    norm = colors.Normalize()
+    norm.autoscale(magE)
+    cm = cm.get_cmap("turbo")
+
+    sm = plt.cm.ScalarMappable(cmap=cm, norm=norm)
+    sm.set_array([])
+
+    fig1, ax1 = plt.subplots(dpi=400)
+    ax1.set_aspect('equal')
+    quiv_scale = np.max(E)*75
+    plt.quiver(C[:, 0], C[:, 1], E[:, 0], E[:, 1], color=cm(magE), scale=quiv_scale, headwidth=2, headlength=3)
+    ax1.set_title('Electric Field Lines')
+    cb = fig1.colorbar(sm)
+    cb.ax.set_ylabel("log(|E [V/mm]|), saturated at 0", rotation=90)
+    plt.show()
