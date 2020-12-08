@@ -8,7 +8,7 @@ mesh_name = "P1_very_fine_mesh_nonuniform"
 # Problem 1 Mesh Generation
 h0_rod1 = 0.04
 h0_rod2 = 0.025
-h0_rect = 0.025
+h0_rect = 0.02
 h0_grad = 0.1
 h0_min = 0.02
 xi = -1.5; xf = 1.5
