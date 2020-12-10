@@ -7,11 +7,11 @@ from matplotlib import tri as triangle_mod
 from matplotlib import cm, colors
 from scipy.spatial import Delaunay
 
-#mesh_name = "P1_very_fine_mesh_uniform"
+mesh_name = "P1_very_fine_mesh_uniform"
 #mesh_name = "P1_fine_mesh_uniform"
 #mesh_name = "P1_mesh"
 #mesh_name = "P1_fine_mesh_nonuniform"
-mesh_name = "PP_fine"
+#mesh_name = "PP_fine"
 #mesh_name = "PP_coarse"
 #mesh_name = "PP_very_fine"
 

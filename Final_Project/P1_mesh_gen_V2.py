@@ -3,12 +3,12 @@ import distmesh as dm
 import numpy as np
 from matplotlib import pyplot as plt
 
-mesh_name = "P1_very_fine_mesh_nonuniform"
+mesh_name = "P1_rod2_mesh_nonuniform"
 
 # Problem 1 Mesh Generation
-h0_rod1 = 0.04
+h0_rod1 = 0.05
 h0_rod2 = 0.025
-h0_rect = 0.02
+h0_rect = 0.05
 h0_grad = 0.1
 h0_min = 0.02
 xi = -1.5; xf = 1.5
@@ -41,10 +41,7 @@ fd_rect = lambda p: dm.drectangle0(p, xi, xf, yi, yf)
 pfix = np.vstack((p_r1, p_r2))
 
 def fh(p):
-    return h0_min + h0_grad*dm.dintersect(
-        dm.dcircle(p, -rod_dist / 2, 0, 0.1),
-        dm.dcircle(p, rod_dist / 2, 0, 0.05)
-    )
+    return h0_min + h0_grad*dm.dcircle(p, rod_dist / 2, 0, 0.05)
 
 fig = plt.figure(dpi=400)
 #pfix=pfix
